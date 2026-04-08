@@ -1,296 +1,211 @@
-# ForgePilot Agent
+﻿# ForgePilot Agent
 
-ForgePilot Agent is a Python-first local AI agent runtime and API service layer.
+<div align="center">
+  <img src="./docs/assets/logo.png" alt="ForgePilot Logo" width="108" />
 
-This repository is your own-branded project baseline for long-term development:
+  <h3>Python-first Agent Runtime + API Service Layer</h3>
+  <p><strong>中文为主 · English as support</strong></p>
 
-- Runtime core: `forgepilot_sdk`
-- Service layer: `forgepilot_api`
-- Compatibility goal: keep protocol stability while moving full control to Python
+  <p>
+    <a href="https://github.com/Duang777/forgepilot-agent/actions/workflows/forgepilot-ci.yml"><img src="https://github.com/Duang777/forgepilot-agent/actions/workflows/forgepilot-ci.yml/badge.svg" alt="CI" /></a>
+    <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python" /></a>
+    <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi&logoColor=white" alt="FastAPI" /></a>
+    <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT" /></a>
+    <a href="https://github.com/Duang777/forgepilot-agent/stargazers"><img src="https://img.shields.io/github/stars/Duang777/forgepilot-agent?style=social" alt="GitHub stars" /></a>
+  </p>
+</div>
 
-## What It Does
+---
 
-ForgePilot Agent provides:
+<a id="zh-overview"></a>
+## 项目概览（Overview）
+> EN: A production-oriented Python rewrite project for agent runtime and API orchestration.
 
-- Plan and execute workflow (`/agent/plan` -> `/agent/execute`)
-- Streaming SSE outputs
-- Multi-turn tool orchestration
-- Provider and sandbox management
-- Session and task persistence
-- MCP and Skills integration
+`ForgePilot Agent` 是一个以 Python 为核心的智能体运行时与服务层工程，目标是把“可用”做成“可维护、可扩展、可交付”：
 
-## Current Status
+- 协议对齐：SSE 事件、API 路由、工具语义尽量兼容既有前端集成
+- 工程化：分层架构、测试矩阵、CI、发布链路、质量门禁
+- 生产收口：鉴权、限流、审计、`/files` 细粒度 ACL 与 feature flag
 
-Implemented and usable now:
+---
 
-- SDK public interfaces
-  - `create_agent(options)`
-  - `query({ prompt, options })`
-  - `Agent.query(prompt, overrides)`
-  - `Agent.prompt(prompt, overrides)`
-- Provider support
-  - OpenAI-compatible chat completions
-  - Anthropic messages
-- Full core event contract over SSE
-  - `text`, `tool_use`, `tool_result`, `result`, `error`, `session`, `done`, `plan`, `direct_answer`
-- SQLite persistence
-  - `sessions`, `tasks`, `messages`, `files`, `settings`
-  - runtime coordination tables: `runtime_sessions`, `runtime_plans`, `runtime_permissions`
-- FastAPI route compatibility
-  - `/agent/*`, `/sandbox/*`, `/providers/*`, `/files/*`, `/mcp/*`, `/preview/*`, `/health`, `/audit/logs`
-- Skills GitHub import
-  - `POST /files/import-skill` with optional `branch` and `path`
-  - Auto-discovers `SKILL.md` and handles name conflicts with numeric suffixes
-  - `POST /files/import-skill/self-check` for no-write import chain validation
-- Codex local config fallback
-  - Reads `~/.codex/config.toml` and `~/.codex/auth.json` by default
-- Startup auto-hydration for model settings in frontend integration flow
-- Persisted audit logs for mutating operations with query API (`GET /audit/logs`)
+<a id="toc"></a>
+## 导航（Table of Contents）
 
-## Tool Coverage
+### 中文导航
+- [项目概览](#zh-overview)
+- [核心亮点](#zh-highlights)
+- [首屏截图](#zh-screenshots)
+- [架构图](#zh-architecture)
+- [快速开始](#zh-quickstart)
+- [API 与协议兼容](#zh-api)
+- [安全与生产收口](#zh-security)
+- [配置说明](#zh-config)
+- [FAQ](#zh-faq)
+- [路线图](#zh-roadmap)
+- [Star History](#zh-star-history)
+- [贡献者](#zh-contributors)
+- [贡献指南](#zh-contributing)
+- [许可证](#zh-license)
 
-Tool family currently includes:
+### English Navigation
+- [Overview](#zh-overview)
+- [Highlights](#zh-highlights)
+- [Screenshots](#zh-screenshots)
+- [Architecture](#zh-architecture)
+- [Quick Start](#zh-quickstart)
+- [API Compatibility](#zh-api)
+- [Security Hardening](#zh-security)
+- [Configuration](#zh-config)
+- [FAQ](#zh-faq)
+- [Roadmap](#zh-roadmap)
+- [Star History](#zh-star-history)
+- [Contributors](#zh-contributors)
+- [Contributing](#zh-contributing)
+- [License](#zh-license)
 
-- File/shell: `Read`, `Write`, `Edit`, `Glob`, `Grep`, `Bash`, `NotebookEdit`
-- Web: `WebSearch`, `WebFetch`
-- Agent/task/team: `Agent`, `SendMessage`, `TeamCreate`, `TeamDelete`, `Task*`
-- Planning/workflow: `EnterPlanMode`, `ExitPlanMode`, `AskUserQuestion`, `ToolSearch`
-- MCP resources: `ListMcpResources`, `ReadMcpResource`
-- Scheduling/config: `Cron*`, `RemoteTrigger`, `Config`, `TodoWrite`
-- Code intelligence: `LSP`, `Skill`
+---
 
-## Quick Start
+<a id="zh-highlights"></a>
+## 核心亮点（Highlights）
+> EN: Plan/execute flow, full SSE contract, MCP/skills, persistence, and desktop integration.
+
+- 计划/执行双阶段：`/agent/plan -> /agent/execute`
+- 全量 SSE 事件：`text/tool_use/tool_result/result/error/session/done/plan/direct_answer`
+- 多 Provider：OpenAI-compatible + Anthropic
+- MCP / Skills：本地加载、配置读取、技能导入链路
+- 持久化：`sessions/tasks/messages/files/settings` + `runtime_*` 协调表
+- 工具覆盖：File/Shell/Web/LSP/Todo/Task/Team 等
+- 前端集成：React + Tauri 壳层可联调
+
+---
+
+<a id="zh-screenshots"></a>
+## 首屏截图（Screenshots）
+> EN: Main desktop surfaces and workflow views.
+
+| Home | Settings |
+|---|---|
+| ![home](./docs/assets/home.png) | ![settings](./docs/assets/settings.png) |
+
+| Files | Skills / Web |
+|---|---|
+| ![files](./docs/assets/files.png) | ![web](./docs/assets/web.png) |
+
+---
+
+<a id="zh-architecture"></a>
+## 架构图（Architecture）
+> EN: Decoupled runtime and service layers, with stable API contracts for UI.
+
+```mermaid
+flowchart LR
+    UI["React + Tauri Shell"] --> API["forgepilot_api (FastAPI)"]
+    API --> SDK["forgepilot_sdk (Agent Runtime)"]
+    SDK --> Providers["OpenAI-compatible / Anthropic"]
+    SDK --> Tooling["Tools / MCP / Skills"]
+    API --> DB["SQLite\n(sessions/tasks/messages/files/settings + runtime_*)"]
+    API --> Sandbox["Sandbox Providers\n(native / codex / claude)"]
+```
+
+---
+
+<a id="zh-quickstart"></a>
+## 快速开始（Quick Start）
+> EN: Start API locally in minutes.
+
+### 1. 安装依赖
 
 ```bash
 python -m venv .venv
 . .venv/Scripts/activate
 pip install -e ".[dev]"
+```
+
+### 2. 启动 API
+
+```bash
 uvicorn forgepilot_api.app:app --host 127.0.0.1 --port 2026 --reload
 ```
 
-Unified PowerShell entry:
+### 3. 使用统一脚本（推荐）
 
 ```powershell
+# API only
 .\scripts\dev.ps1 -Task api -Port 2026
-```
 
-One-command desktop dev (API + Tauri):
-
-```powershell
-.\scripts\dev.ps1 -Task desktop
-```
-
-Desktop dev with explicit smoke behavior:
-
-```powershell
-# strict default: require model + require plan event
+# API + Tauri Desktop
 .\scripts\dev.ps1 -Task desktop
 
-# if you only want UI wiring checks without model availability enforcement
-.\scripts\dev.ps1 -Task desktop -NoRequireModel
-```
-
-Legacy entrypoints are still supported for compatibility:
-
-- `.\scripts-dev.ps1`
-- `.\scripts-dev-tauri.ps1`
-
-Windows release build with Python sidecar:
-
-```powershell
-$frontend = python scripts/resolve_frontend_shell.py --repo-root . --relative
-cd $frontend
-pnpm tauri:build:python:windows
-```
-
-Linux/macOS sidecar-aware build commands are also available:
-
-```bash
-frontend="$(python scripts/resolve_frontend_shell.py --repo-root . --relative)"
-cd "$frontend"
-pnpm tauri:build:python:linux
-# or
-pnpm tauri:build:python:mac-intel
-pnpm tauri:build:python:mac-arm
-```
-
-Prerequisite: `python -m pip install pyinstaller`
-
-Or run one command from repo root (tests + sidecar + checksums + Tauri build):
-
-```powershell
-.\scripts\release_windows.ps1
-```
-
-Local quality gate (ruff + tests + cargo check + sidecar build + checksums):
-
-```powershell
+# Quality gate
 .\scripts\dev.ps1 -Task verify
 ```
 
-Clean stale legacy build artifacts only:
+### 4. 健康检查
 
-```powershell
-.\scripts\clean_stale_artifacts.ps1
-```
+- `http://127.0.0.1:2026/health`
+- `http://127.0.0.1:2026/metrics`（当 `FORGEPILOT_EXPOSE_METRICS=true`）
 
-Run brand residue scan (fails if stale token is detected):
+---
 
-```powershell
-.\scripts\check_brand_residue.ps1
-```
+<a id="zh-api"></a>
+## API 与协议兼容（API & Protocol Compatibility）
+> EN: Stable route naming and SSE payload schema for frontend compatibility.
 
-Health check:
+### 核心路由
 
-- [http://127.0.0.1:2026/health](http://127.0.0.1:2026/health)
-- [http://127.0.0.1:2026/metrics](http://127.0.0.1:2026/metrics) (Prometheus text format)
+- `/agent/*`
+- `/sandbox/*`
+- `/providers/*`
+- `/files/*`
+- `/mcp/*`
+- `/preview/*`
+- `/health`
+- `/audit/logs`
+- `/metrics`
 
-Skills import API example:
+### SSE 事件格式
 
-```bash
-curl -X POST http://127.0.0.1:2026/files/import-skill \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://github.com/example/skills-repo",
-    "targetDir": "~/Library/Application Support/ForgePilot/skills",
-    "branch": "main",
-    "path": "skills/my-skill"
-  }'
-```
+使用 `data: <json>\n\n` 推送，事件类型包括：
 
-`branch` and `path` are optional. When omitted, the default branch and repository root are used.
+- `text`
+- `tool_use`
+- `tool_result`
+- `result`
+- `error`
+- `session`
+- `done`
+- `plan`
+- `direct_answer`
 
-Import self-check API example:
+---
 
-```bash
-curl -X POST http://127.0.0.1:2026/files/import-skill/self-check \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
+<a id="zh-security"></a>
+## 安全与生产收口（Security Hardening）
+> EN: Built-in auth, rate limiting, audit logs, and endpoint-level ACL.
 
-Audit query example:
+### 已实现能力
 
-```bash
-curl "http://127.0.0.1:2026/audit/logs?method=POST&path=/agent&limit=20"
-```
+- API Key 鉴权（支持 `subject:key`）
+- 请求限流（memory / redis）
+- 变更型接口审计日志
+- `/files` 生产级治理：
+  - `dev/prod` 模式
+  - 高风险端点开关（open / import-skill）
+  - subject + scope 细粒度 ACL
 
-## Project Layout
+### Files ACL Scopes
 
-```text
-.
-|- forgepilot_sdk/                 # Runtime core (provider/tool/session/mcp)
-|- forgepilot_api/                 # FastAPI service (api/services/storage/sandbox/core)
-|- tests/                          # layered tests (unit/integration/contract/e2e)
-|- docs/                           # architecture/compatibility/integration docs
-|- .refs/                          # frozen upstream references and frontend shell
-|- scripts/
-|  |- dev/
-|  |  |- api.ps1                   # API-only launcher
-|  |  `- desktop.ps1               # API + Tauri launcher
-|  |- dev.ps1                      # unified task entry (api/desktop/verify/smoke)
-|  |- verify_local.ps1             # local quality gate
-|  |- build_python_sidecar.py      # sidecar build
-|  |- write_sidecar_checksums.py   # artifact checksums
-|  |- smoke_api_chain.py           # plan -> execute -> SSE smoke check
-|  `- release_windows.ps1          # one-command Windows release pipeline
-|- scripts-dev.ps1                 # compatibility wrapper
-`- scripts-dev-tauri.ps1           # compatibility wrapper
-```
-
-## Engineering Standards
-
-- App factory: `forgepilot_api.app:create_app`
-- ASGI app path: `forgepilot_api.app:app`
-- Unified dev command: `.\scripts\dev.ps1`
-- Contribution and tooling standards: `CONTRIBUTING.md`
-- Engineering constraints and boundaries: `docs/engineering_standards.md`
-
-## Runtime Settings
-
-Environment-driven runtime options:
-
-- `FORGEPILOT_CORS_ORIGINS`
-  - Comma-separated origins, or `*` (default).
-- `FORGEPILOT_CORS_ALLOW_CREDENTIALS`
-  - `true/false`, default `true`.
-- `FORGEPILOT_LOG_LEVEL`
-  - Logging level, default `INFO`.
-- `FORGEPILOT_REQUEST_ID_HEADER`
-  - Request tracing header name, default `x-request-id`.
-- `FORGEPILOT_EXPOSE_METRICS`
-  - Enable `/metrics` endpoint, default `true`.
-- `FORGEPILOT_AUTH_MODE`
-  - `off` (default) or `api_key`.
-- `FORGEPILOT_API_KEYS`
-  - Comma-separated API keys.
-  - Supports `subject:key` form for audit identity, e.g. `admin:sk-live-1,ops:sk-live-2`.
-- `FORGEPILOT_API_KEY_HEADER`
-  - API key header name, default `x-api-key`.
-- `FORGEPILOT_AUTH_EXEMPT_PATHS`
-  - Comma-separated path prefixes bypassing auth/limit.
-  - Default: `/,/health,/metrics,/docs,/redoc,/openapi.json`.
-- `FORGEPILOT_RATE_LIMIT_ENABLED`
-  - Enable in-process request rate limiting.
-- `FORGEPILOT_RATE_LIMIT_REQUESTS`
-  - Max requests per window, default `60`.
-- `FORGEPILOT_RATE_LIMIT_WINDOW_SECONDS`
-  - Window size in seconds, default `60`.
-- `FORGEPILOT_RATE_LIMIT_BACKEND`
-  - `memory` (default) or `redis`.
-- `FORGEPILOT_RATE_LIMIT_REDIS_URL`
-  - Redis DSN when backend is `redis`, default `redis://127.0.0.1:6379/0`.
-- `FORGEPILOT_RATE_LIMIT_REDIS_KEY_PREFIX`
-  - Redis key prefix, default `forgepilot:ratelimit`.
-- `FORGEPILOT_RATE_LIMIT_FAIL_OPEN`
-  - `true` (default): Redis failure allows requests.
-  - `false`: Redis failure returns `503 Rate limiter unavailable`.
-- `FORGEPILOT_RATE_LIMIT_TRUST_PROXY`
-  - Use forwarded IP header for identity (`false` by default).
-- `FORGEPILOT_RATE_LIMIT_PROXY_HEADER`
-  - Proxy source header, default `x-forwarded-for`.
-- `FORGEPILOT_AUDIT_LOG_ENABLED`
-  - Enable audit logs for mutating requests, default `true`.
-- `FORGEPILOT_FILES_MODE`
-  - Files API policy mode: `dev` or `prod`.
-  - Default follows `NODE_ENV` (`production` -> `prod`, otherwise `dev`).
-- `FORGEPILOT_FILES_DANGEROUS_ENABLED`
-  - Enables high-risk `/files` operations (`open`, `open-in-editor`, `import-skill*`).
-  - Default: `true` in `dev`, `false` in `prod`.
-- `FORGEPILOT_FILES_ACL_DEFAULT`
-  - Default ACL scopes for unmatched subjects.
-  - `dev` default: `*`; `prod` default: `files.read`.
-- `FORGEPILOT_FILES_ACL_SUBJECTS`
-  - Subject-level ACL overrides, format: `subject=scopes;subject2=scopes`.
-  - Example: `admin=*;operator=files.read,files.open;viewer=files.read`.
-- `FORGEPILOT_RUNTIME_PLAN_TTL_SECONDS`
-  - Plan cache TTL in runtime store, default `3600`.
-- `FORGEPILOT_RUNTIME_PERMISSION_TTL_SECONDS`
-  - Pending permission TTL in runtime store, default `1800`.
-- `FORGEPILOT_PERMISSION_DECISION_TIMEOUT_SECONDS`
-  - Max time to wait for permission response, default `1800`.
-- `FORGEPILOT_PERMISSION_POLL_INTERVAL_SECONDS`
-  - Poll interval for permission decision checks, default `0.5` (minimum `0.1`).
-
-Redis backend prerequisite:
-
-```bash
-pip install -e ".[redis]"
-```
-
-### Files ACL scopes
-
-You can assign ACL with grouped scopes or endpoint-level scopes:
-
-- Group scopes:
-  - `files.read` (or `read`)
-  - `files.open` (or `open`)
-  - `files.import` (or `import`)
-- Endpoint scopes:
+- 组权限：
+  - `files.read`（或 `read`）
+  - `files.open`（或 `open`）
+  - `files.import`（或 `import`）
+- 端点权限：
   - `files.readdir`, `files.stat`, `files.read`, `files.skills_dir`, `files.read_binary`, `files.detect_editor`, `files.task`
   - `files.open`, `files.open_in_editor`
   - `files.import_skill`, `files.import_skill_self_check`
 
-Example production setup:
+生产配置示例：
 
 ```bash
 FORGEPILOT_FILES_MODE=prod
@@ -299,90 +214,119 @@ FORGEPILOT_FILES_ACL_DEFAULT=files.read
 FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.import;viewer=files.read
 ```
 
-## Runtime State Coordination
+---
 
-Runtime control state is persisted in SQLite so process-local memory is no longer the only source of truth:
+<a id="zh-config"></a>
+## 配置说明（Configuration）
+> EN: Environment-first setup with safe defaults.
 
-- `runtime_sessions`
-  - Tracks active session phase and `aborted` state for stop/cancel behavior.
-- `runtime_plans`
-  - Stores planning output with TTL-based expiry.
-- `runtime_permissions`
-  - Stores pending permission requests and decision status (`pending`, `approved`, `denied`, `timeout`, `cancelled`).
+### 通用配置
 
-Behavior model:
+- `FORGEPILOT_LOG_LEVEL`
+- `FORGEPILOT_REQUEST_ID_HEADER`
+- `FORGEPILOT_EXPOSE_METRICS`
 
-- Local in-memory maps are treated as short-lived acceleration caches.
-- DB rows are treated as authoritative for plan existence and permission lifecycle.
-- Permission waiting loop reads decision state from DB, so approval/deny can be processed across API workers.
-- Plan lookup validates DB TTL first, preventing stale in-process plan cache from bypassing expiration.
+### 鉴权与限流
 
-## Branding Notes
+- `FORGEPILOT_AUTH_MODE` = `off | api_key`
+- `FORGEPILOT_API_KEYS`
+- `FORGEPILOT_API_KEY_HEADER`
+- `FORGEPILOT_AUTH_EXEMPT_PATHS`
+- `FORGEPILOT_RATE_LIMIT_ENABLED`
+- `FORGEPILOT_RATE_LIMIT_REQUESTS`
+- `FORGEPILOT_RATE_LIMIT_WINDOW_SECONDS`
+- `FORGEPILOT_RATE_LIMIT_BACKEND` = `memory | redis`
+- `FORGEPILOT_RATE_LIMIT_REDIS_URL`
 
-The project brand is now **ForgePilot Agent**.
+### 运行时状态协调
 
-To keep compatibility stable, these technical identifiers are intentionally preserved:
+- `FORGEPILOT_RUNTIME_PLAN_TTL_SECONDS`
+- `FORGEPILOT_RUNTIME_PERMISSION_TTL_SECONDS`
+- `FORGEPILOT_PERMISSION_DECISION_TIMEOUT_SECONDS`
+- `FORGEPILOT_PERMISSION_POLL_INTERVAL_SECONDS`
 
-- Python module names: `forgepilot_sdk`, `forgepilot_api`
-- Existing route paths used by the current frontend integration
-- Existing local data path conventions (for migration safety)
+---
 
-This lets you rebrand immediately without breaking active workflows.
+<a id="zh-faq"></a>
+## FAQ
 
-Sidecar binary migration:
+<details>
+<summary><strong>Q1: 现在能直接跑通主流程吗？ / Can I run the main flow now?</strong></summary>
 
-- New default binary name: `forgepilot-agent-api`
-- Optional override env: `FORGEPILOT_SIDECAR_NAME`
+可以。当前支持从 `plan` 到 `execute` 到 SSE 结果回流的完整链路，且有集成测试保障。
 
-## Test Status
+</details>
 
-Current local test suite passes:
+<details>
+<summary><strong>Q2: 为什么还保留 .refs 目录？ / Why keep .refs?</strong></summary>
 
-```bash
-python -m pytest -q
-```
+`.refs` 用于冻结上游参考与前端壳层，便于协议对齐和差异分析，不是运行时必需目录。
 
-Plan/execute/SSE chain smoke test (single command):
+</details>
 
-```bash
-python -m pytest -q tests/e2e/test_plan_execute_chain_smoke.py
-```
+<details>
+<summary><strong>Q3: 这是“完全复刻”了吗？ / Is this 100% parity?</strong></summary>
 
-Optional live network test for GitHub skill import:
+核心主链路和关键协议已可用，长尾行为仍在持续对齐。建议把当前版本视为“可交付基础版 + 持续逼近 100%”。
 
-```powershell
-$env:FORGEPILOT_RUN_LIVE_NET_TESTS = "1"
-python -m pytest -q tests/e2e/test_import_skill_live_optional.py
-```
+</details>
 
-GitHub Actions workflow included:
+<details>
+<summary><strong>Q4: 如何做公网部署？ / How to expose to public network safely?</strong></summary>
 
-- `.github/workflows/forgepilot-ci.yml`
-  - Python tests (Ubuntu)
-  - Tauri Rust compile check (`cargo check`)
-  - Python sidecar build matrix (Ubuntu/Windows/macOS) + SHA256 artifact upload
+至少开启 API Key、限流、审计，并把 `FORGEPILOT_FILES_MODE=prod` + `/files` ACL 收紧到最小权限。
 
-## Baseline References
+</details>
 
-Frozen upstream references:
+<details>
+<summary><strong>Q5: 支持哪些模型接口？ / Which providers are supported?</strong></summary>
 
-- `open-agent-sdk-typescript@main` = `366438d2ef94775a4515301bcf8a58ab866c1731`
-- `shell-ui@dev` = `01818e9147585ed16558b6d64d097cebbc922e0e`
+支持 OpenAI-compatible 与 Anthropic 接口，且可通过配置切换 Provider。
 
-Compatibility details:
+</details>
 
-- [docs/compatibility_matrix.md](docs/compatibility_matrix.md)
+---
 
-## Next Steps
+<a id="zh-roadmap"></a>
+## 路线图（Roadmap）
+> EN: Closing long-tail parity and hardening distributed runtime.
 
-1. Close long-tail behavior parity gaps.
-2. Optimize long-session stability and concurrency performance.
-3. Add release signing/notarization pipeline for desktop artifacts.
+- [ ] 长尾行为 100% 对齐与契约回归自动化
+- [ ] 运行时状态扩展到 Redis/Postgres 的多实例方案
+- [ ] 更完整 RBAC / 审计检索 / 安全模板
+- [ ] 桌面发布签名与制品发布链路完善
 
-## License Reminder
+---
 
-This repository is your own rewrite project.
+<a id="zh-star-history"></a>
+## Star History
 
-If you plan public release or commercial distribution, review upstream licenses carefully and complete compliance checks before publishing.
+[![Star History Chart](https://api.star-history.com/svg?repos=Duang777/forgepilot-agent&type=Date)](https://star-history.com/#Duang777/forgepilot-agent&Date)
 
+---
 
+<a id="zh-contributors"></a>
+## 贡献者（Contributors）
+
+<a href="https://github.com/Duang777/forgepilot-agent/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Duang777/forgepilot-agent" alt="contributors" />
+</a>
+
+---
+
+<a id="zh-contributing"></a>
+## 贡献指南（Contributing）
+> EN: PRs are welcome. Please keep protocol compatibility and test quality.
+
+- 先阅读：[CONTRIBUTING.md](./CONTRIBUTING.md)
+- 提交前建议执行：`.\scripts\verify_local.ps1`
+- 建议包含：变更说明、测试结果、兼容性影响
+
+---
+
+<a id="zh-license"></a>
+## 许可证（License）
+
+本项目采用 [MIT License](./LICENSE)。
+
+如计划二次分发或商业发布，请先完成上游许可证条款复核。
