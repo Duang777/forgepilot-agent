@@ -1,7 +1,7 @@
 ﻿# ForgePilot Agent
 
 <div align="center">
-  <img src="./docs/assets/logo.png" alt="ForgePilot Logo" width="108" />
+  <img src="./docs/assets/logo.svg" alt="ForgePilot Logo" width="110" />
 
   <h3>Python-first Agent Runtime + API Service Layer</h3>
   <p><strong>中文为主 · English as support</strong></p>
@@ -19,11 +19,11 @@
 
 <a id="zh-overview"></a>
 ## 项目概览（Overview）
-> EN: A production-oriented Python rewrite project for agent runtime and API orchestration.
+> EN: A production-oriented Python rewrite for agent runtime and protocol-compatible API orchestration.
 
-`ForgePilot Agent` 是一个以 Python 为核心的智能体运行时与服务层工程，目标是把“可用”做成“可维护、可扩展、可交付”：
+`ForgePilot Agent` 是一个以 Python 为核心的智能体运行时与服务层工程，目标是把“能跑”做成“能长期维护”：
 
-- 协议对齐：SSE 事件、API 路由、工具语义尽量兼容既有前端集成
+- 协议对齐：SSE、API 路由、工具语义尽量兼容既有前端集成
 - 工程化：分层架构、测试矩阵、CI、发布链路、质量门禁
 - 生产收口：鉴权、限流、审计、`/files` 细粒度 ACL 与 feature flag
 
@@ -35,12 +35,14 @@
 ### 中文导航
 - [项目概览](#zh-overview)
 - [核心亮点](#zh-highlights)
-- [首屏截图](#zh-screenshots)
+- [Quick Demo GIF](#zh-quick-demo)
 - [架构图](#zh-architecture)
 - [快速开始](#zh-quickstart)
 - [API 与协议兼容](#zh-api)
 - [安全与生产收口](#zh-security)
 - [配置说明](#zh-config)
+- [Versioning / Changelog](#zh-versioning)
+- [Security Policy](#zh-security-policy)
 - [FAQ](#zh-faq)
 - [路线图](#zh-roadmap)
 - [Star History](#zh-star-history)
@@ -51,12 +53,14 @@
 ### English Navigation
 - [Overview](#zh-overview)
 - [Highlights](#zh-highlights)
-- [Screenshots](#zh-screenshots)
+- [Quick Demo GIF](#zh-quick-demo)
 - [Architecture](#zh-architecture)
 - [Quick Start](#zh-quickstart)
 - [API Compatibility](#zh-api)
 - [Security Hardening](#zh-security)
 - [Configuration](#zh-config)
+- [Versioning / Changelog](#zh-versioning)
+- [Security Policy](#zh-security-policy)
 - [FAQ](#zh-faq)
 - [Roadmap](#zh-roadmap)
 - [Star History](#zh-star-history)
@@ -71,26 +75,19 @@
 > EN: Plan/execute flow, full SSE contract, MCP/skills, persistence, and desktop integration.
 
 - 计划/执行双阶段：`/agent/plan -> /agent/execute`
-- 全量 SSE 事件：`text/tool_use/tool_result/result/error/session/done/plan/direct_answer`
+- SSE 事件契约：`text/tool_use/tool_result/result/error/session/done/plan/direct_answer`
 - 多 Provider：OpenAI-compatible + Anthropic
 - MCP / Skills：本地加载、配置读取、技能导入链路
 - 持久化：`sessions/tasks/messages/files/settings` + `runtime_*` 协调表
 - 工具覆盖：File/Shell/Web/LSP/Todo/Task/Team 等
-- 前端集成：React + Tauri 壳层可联调
 
 ---
 
-<a id="zh-screenshots"></a>
-## 首屏截图（Screenshots）
-> EN: Main desktop surfaces and workflow views.
+<a id="zh-quick-demo"></a>
+## Quick Demo GIF
+> EN: Self-generated demo animation, no third-party UI screenshot assets.
 
-| Home | Settings |
-|---|---|
-| ![home](./docs/assets/home.png) | ![settings](./docs/assets/settings.png) |
-
-| Files | Skills / Web |
-|---|---|
-| ![files](./docs/assets/files.png) | ![web](./docs/assets/web.png) |
+![Quick Demo](./docs/assets/quick-demo.gif)
 
 ---
 
@@ -164,19 +161,10 @@ uvicorn forgepilot_api.app:app --host 127.0.0.1 --port 2026 --reload
 - `/audit/logs`
 - `/metrics`
 
-### SSE 事件格式
+### SSE 格式
 
-使用 `data: <json>\n\n` 推送，事件类型包括：
-
-- `text`
-- `tool_use`
-- `tool_result`
-- `result`
-- `error`
-- `session`
-- `done`
-- `plan`
-- `direct_answer`
+- 传输格式：`data: <json>\n\n`
+- 事件类型：`text`, `tool_use`, `tool_result`, `result`, `error`, `session`, `done`, `plan`, `direct_answer`
 
 ---
 
@@ -184,35 +172,23 @@ uvicorn forgepilot_api.app:app --host 127.0.0.1 --port 2026 --reload
 ## 安全与生产收口（Security Hardening）
 > EN: Built-in auth, rate limiting, audit logs, and endpoint-level ACL.
 
-### 已实现能力
+### 已实现
 
 - API Key 鉴权（支持 `subject:key`）
 - 请求限流（memory / redis）
 - 变更型接口审计日志
-- `/files` 生产级治理：
+- `/files` 生产治理：
   - `dev/prod` 模式
   - 高风险端点开关（open / import-skill）
   - subject + scope 细粒度 ACL
 
 ### Files ACL Scopes
 
-- 组权限：
-  - `files.read`（或 `read`）
-  - `files.open`（或 `open`）
-  - `files.import`（或 `import`）
+- 组权限：`files.read` / `files.open` / `files.import`
 - 端点权限：
   - `files.readdir`, `files.stat`, `files.read`, `files.skills_dir`, `files.read_binary`, `files.detect_editor`, `files.task`
   - `files.open`, `files.open_in_editor`
   - `files.import_skill`, `files.import_skill_self_check`
-
-生产配置示例：
-
-```bash
-FORGEPILOT_FILES_MODE=prod
-FORGEPILOT_FILES_DANGEROUS_ENABLED=true
-FORGEPILOT_FILES_ACL_DEFAULT=files.read
-FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.import;viewer=files.read
-```
 
 ---
 
@@ -220,14 +196,12 @@ FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.impor
 ## 配置说明（Configuration）
 > EN: Environment-first setup with safe defaults.
 
-### 通用配置
-
+### 通用
 - `FORGEPILOT_LOG_LEVEL`
 - `FORGEPILOT_REQUEST_ID_HEADER`
 - `FORGEPILOT_EXPOSE_METRICS`
 
 ### 鉴权与限流
-
 - `FORGEPILOT_AUTH_MODE` = `off | api_key`
 - `FORGEPILOT_API_KEYS`
 - `FORGEPILOT_API_KEY_HEADER`
@@ -239,11 +213,33 @@ FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.impor
 - `FORGEPILOT_RATE_LIMIT_REDIS_URL`
 
 ### 运行时状态协调
-
 - `FORGEPILOT_RUNTIME_PLAN_TTL_SECONDS`
 - `FORGEPILOT_RUNTIME_PERMISSION_TTL_SECONDS`
 - `FORGEPILOT_PERMISSION_DECISION_TIMEOUT_SECONDS`
 - `FORGEPILOT_PERMISSION_POLL_INTERVAL_SECONDS`
+
+---
+
+<a id="zh-versioning"></a>
+## Versioning / Changelog
+> EN: Semantic Versioning with Keep a Changelog style records.
+
+- 版本规范：`SemVer`（`MAJOR.MINOR.PATCH`）
+- 变更记录：见 [CHANGELOG.md](./CHANGELOG.md)
+- 发布建议：
+  - `MAJOR`：不兼容 API/协议变更
+  - `MINOR`：向后兼容功能新增
+  - `PATCH`：Bugfix / 文档 / 非行为变更
+
+---
+
+<a id="zh-security-policy"></a>
+## Security Policy
+> EN: Responsible disclosure process and support matrix are documented.
+
+- 安全策略文档：见 [SECURITY.md](./SECURITY.md)
+- 漏洞提交流程：请勿公开 issue 直接披露可利用细节
+- 推荐部署基线：启用鉴权 + 限流 + 审计 + `FORGEPILOT_FILES_MODE=prod`
 
 ---
 
@@ -253,35 +249,21 @@ FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.impor
 <details>
 <summary><strong>Q1: 现在能直接跑通主流程吗？ / Can I run the main flow now?</strong></summary>
 
-可以。当前支持从 `plan` 到 `execute` 到 SSE 结果回流的完整链路，且有集成测试保障。
+可以。当前支持从 `plan` 到 `execute` 到 SSE 回流的完整主链路，并有集成测试覆盖。
 
 </details>
 
 <details>
-<summary><strong>Q2: 为什么还保留 .refs 目录？ / Why keep .refs?</strong></summary>
+<summary><strong>Q2: 这是 100% 完全复刻吗？ / Is this 100% parity already?</strong></summary>
 
-`.refs` 用于冻结上游参考与前端壳层，便于协议对齐和差异分析，不是运行时必需目录。
-
-</details>
-
-<details>
-<summary><strong>Q3: 这是“完全复刻”了吗？ / Is this 100% parity?</strong></summary>
-
-核心主链路和关键协议已可用，长尾行为仍在持续对齐。建议把当前版本视为“可交付基础版 + 持续逼近 100%”。
+核心协议和主流程已可用，长尾行为仍在持续对齐中。
 
 </details>
 
 <details>
-<summary><strong>Q4: 如何做公网部署？ / How to expose to public network safely?</strong></summary>
+<summary><strong>Q3: 如何公网部署更安全？ / How to deploy safely to public network?</strong></summary>
 
-至少开启 API Key、限流、审计，并把 `FORGEPILOT_FILES_MODE=prod` + `/files` ACL 收紧到最小权限。
-
-</details>
-
-<details>
-<summary><strong>Q5: 支持哪些模型接口？ / Which providers are supported?</strong></summary>
-
-支持 OpenAI-compatible 与 Anthropic 接口，且可通过配置切换 Provider。
+至少开启 API Key、限流、审计日志，并将 `FORGEPILOT_FILES_MODE=prod`。
 
 </details>
 
@@ -289,7 +271,6 @@ FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.impor
 
 <a id="zh-roadmap"></a>
 ## 路线图（Roadmap）
-> EN: Closing long-tail parity and hardening distributed runtime.
 
 - [ ] 长尾行为 100% 对齐与契约回归自动化
 - [ ] 运行时状态扩展到 Redis/Postgres 的多实例方案
@@ -318,9 +299,9 @@ FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.impor
 ## 贡献指南（Contributing）
 > EN: PRs are welcome. Please keep protocol compatibility and test quality.
 
-- 先阅读：[CONTRIBUTING.md](./CONTRIBUTING.md)
+- 请先阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)
 - 提交前建议执行：`.\scripts\verify_local.ps1`
-- 建议包含：变更说明、测试结果、兼容性影响
+- 建议 PR 描述包含：变更说明、测试结果、兼容性影响
 
 ---
 
