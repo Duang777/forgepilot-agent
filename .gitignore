@@ -1,0 +1,23 @@
+__pycache__/
+.pytest_cache/
+.venv/
+*.pyc
+*.pyo
+*.db
+*.sqlite
+*.sqlite3
+*.log
+.build/
+.runlogs/
+sessions/
+
+# editor/tooling
+.idea/
+.vscode/
+.mypy_cache/
+.ruff_cache/
+
+# frontend references
+.refs/**/node_modules/
+.refs/**/dist/
+.refs/**/target/

@@ -1,0 +1,5 @@
+{
+  "bundle": {
+    "externalBin": ["../src-api/dist/forgepilot-agent-api"]
+  }
+}
