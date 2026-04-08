@@ -2,9 +2,8 @@
 
 <div align="center">
   <img src="./docs/assets/logo.svg" alt="ForgePilot Logo" width="110" />
-
-  <h3>Python-first Agent Runtime + API Service Layer</h3>
-  <p><strong>中文为主 · English as support</strong></p>
+  <h3>面向生产的 Python 智能体运行时与 API 服务层</h3>
+  <p><sub>Production-ready Agent Runtime & API Service Layer</sub></p>
 
   <p>
     <a href="https://github.com/Duang777/forgepilot-agent/actions/workflows/forgepilot-ci.yml"><img src="https://github.com/Duang777/forgepilot-agent/actions/workflows/forgepilot-ci.yml/badge.svg" alt="CI" /></a>
@@ -17,83 +16,53 @@
 
 ---
 
-<a id="zh-overview"></a>
-## 项目概览（Overview）
-> EN: A production-oriented Python rewrite for agent runtime and protocol-compatible API orchestration.
+<a id="overview"></a>
+## 项目概览
 
-`ForgePilot Agent` 是一个以 Python 为核心的智能体运行时与服务层工程，目标是把“能跑”做成“能长期维护”：
+`ForgePilot Agent` 聚焦于本地优先与工程化交付，提供完整的智能体执行后端能力：
 
-- 协议对齐：SSE、API 路由、工具语义尽量兼容既有前端集成
-- 工程化：分层架构、测试矩阵、CI、发布链路、质量门禁
-- 生产收口：鉴权、限流、审计、`/files` 细粒度 ACL 与 feature flag
-
----
-
-<a id="toc"></a>
-## 导航（Table of Contents）
-
-### 中文导航
-- [项目概览](#zh-overview)
-- [核心亮点](#zh-highlights)
-- [Quick Demo GIF](#zh-quick-demo)
-- [架构图](#zh-architecture)
-- [快速开始](#zh-quickstart)
-- [API 与协议兼容](#zh-api)
-- [安全与生产收口](#zh-security)
-- [配置说明](#zh-config)
-- [Versioning / Changelog](#zh-versioning)
-- [Security Policy](#zh-security-policy)
-- [FAQ](#zh-faq)
-- [路线图](#zh-roadmap)
-- [Star History](#zh-star-history)
-- [贡献者](#zh-contributors)
-- [贡献指南](#zh-contributing)
-- [许可证](#zh-license)
-
-### English Navigation
-- [Overview](#zh-overview)
-- [Highlights](#zh-highlights)
-- [Quick Demo GIF](#zh-quick-demo)
-- [Architecture](#zh-architecture)
-- [Quick Start](#zh-quickstart)
-- [API Compatibility](#zh-api)
-- [Security Hardening](#zh-security)
-- [Configuration](#zh-config)
-- [Versioning / Changelog](#zh-versioning)
-- [Security Policy](#zh-security-policy)
-- [FAQ](#zh-faq)
-- [Roadmap](#zh-roadmap)
-- [Star History](#zh-star-history)
-- [Contributors](#zh-contributors)
-- [Contributing](#zh-contributing)
-- [License](#zh-license)
+- 计划/执行双阶段工作流
+- SSE 流式事件协议
+- 多 Provider 支持（OpenAI-compatible / Anthropic）
+- MCP / Skills / Tooling 编排
+- 会话与运行时状态持久化
+- 安全治理（鉴权、限流、审计、`/files` ACL）
 
 ---
 
-<a id="zh-highlights"></a>
-## 核心亮点（Highlights）
-> EN: Plan/execute flow, full SSE contract, MCP/skills, persistence, and desktop integration.
+<a id="navigation"></a>
+## 快速导航
 
-- 计划/执行双阶段：`/agent/plan -> /agent/execute`
-- SSE 事件契约：`text/tool_use/tool_result/result/error/session/done/plan/direct_answer`
-- 多 Provider：OpenAI-compatible + Anthropic
-- MCP / Skills：本地加载、配置读取、技能导入链路
-- 持久化：`sessions/tasks/messages/files/settings` + `runtime_*` 协调表
-- 工具覆盖：File/Shell/Web/LSP/Todo/Task/Team 等
+| 模块 | 直达 |
+|---|---|
+| 开始使用 | [快速开始](#quickstart) · [Quick Demo GIF](#quick-demo) |
+| 协议与接口 | [API 与协议兼容](#api-compatibility) · [配置说明](#configuration) |
+| 安全与规范 | [安全与生产收口](#security) · [Security Policy](#security-policy) |
+| 发布与版本 | [Versioning / Changelog](#versioning) · [路线图](#roadmap) |
+| 社区协作 | [贡献指南](#contributing) · [贡献者](#contributors) · [Star History](#star-history) |
 
 ---
 
-<a id="zh-quick-demo"></a>
+<a id="highlights"></a>
+## 核心亮点
+
+- 计划/执行：`/agent/plan -> /agent/execute`
+- SSE 事件：`text/tool_use/tool_result/result/error/session/done/plan/direct_answer`
+- 存储模型：`sessions/tasks/messages/files/settings` + `runtime_*`
+- 工具覆盖：File/Shell/Web/LSP/Todo/Task/Team
+- 端侧联调：React + Tauri + Python sidecar
+
+---
+
+<a id="quick-demo"></a>
 ## Quick Demo GIF
-> EN: Self-generated demo animation, no third-party UI screenshot assets.
 
 ![Quick Demo](./docs/assets/quick-demo.gif)
 
 ---
 
-<a id="zh-architecture"></a>
-## 架构图（Architecture）
-> EN: Decoupled runtime and service layers, with stable API contracts for UI.
+<a id="architecture"></a>
+## 架构图
 
 ```mermaid
 flowchart LR
@@ -107,9 +76,8 @@ flowchart LR
 
 ---
 
-<a id="zh-quickstart"></a>
-## 快速开始（Quick Start）
-> EN: Start API locally in minutes.
+<a id="quickstart"></a>
+## 快速开始
 
 ### 1. 安装依赖
 
@@ -145,9 +113,8 @@ uvicorn forgepilot_api.app:app --host 127.0.0.1 --port 2026 --reload
 
 ---
 
-<a id="zh-api"></a>
-## API 与协议兼容（API & Protocol Compatibility）
-> EN: Stable route naming and SSE payload schema for frontend compatibility.
+<a id="api-compatibility"></a>
+## API 与协议兼容
 
 ### 核心路由
 
@@ -161,28 +128,27 @@ uvicorn forgepilot_api.app:app --host 127.0.0.1 --port 2026 --reload
 - `/audit/logs`
 - `/metrics`
 
-### SSE 格式
+### SSE 传输
 
-- 传输格式：`data: <json>\n\n`
-- 事件类型：`text`, `tool_use`, `tool_result`, `result`, `error`, `session`, `done`, `plan`, `direct_answer`
+- 格式：`data: <json>\n\n`
+- 事件：`text`, `tool_use`, `tool_result`, `result`, `error`, `session`, `done`, `plan`, `direct_answer`
 
 ---
 
-<a id="zh-security"></a>
-## 安全与生产收口（Security Hardening）
-> EN: Built-in auth, rate limiting, audit logs, and endpoint-level ACL.
+<a id="security"></a>
+## 安全与生产收口
 
-### 已实现
+### 已实现能力
 
 - API Key 鉴权（支持 `subject:key`）
 - 请求限流（memory / redis）
 - 变更型接口审计日志
-- `/files` 生产治理：
+- `/files` 端点治理：
   - `dev/prod` 模式
   - 高风险端点开关（open / import-skill）
   - subject + scope 细粒度 ACL
 
-### Files ACL Scopes
+### Files ACL Scope
 
 - 组权限：`files.read` / `files.open` / `files.import`
 - 端点权限：
@@ -190,11 +156,19 @@ uvicorn forgepilot_api.app:app --host 127.0.0.1 --port 2026 --reload
   - `files.open`, `files.open_in_editor`
   - `files.import_skill`, `files.import_skill_self_check`
 
+生产配置示例：
+
+```bash
+FORGEPILOT_FILES_MODE=prod
+FORGEPILOT_FILES_DANGEROUS_ENABLED=true
+FORGEPILOT_FILES_ACL_DEFAULT=files.read
+FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.import;viewer=files.read
+```
+
 ---
 
-<a id="zh-config"></a>
-## 配置说明（Configuration）
-> EN: Environment-first setup with safe defaults.
+<a id="configuration"></a>
+## 配置说明
 
 ### 通用
 - `FORGEPILOT_LOG_LEVEL`
@@ -212,7 +186,7 @@ uvicorn forgepilot_api.app:app --host 127.0.0.1 --port 2026 --reload
 - `FORGEPILOT_RATE_LIMIT_BACKEND` = `memory | redis`
 - `FORGEPILOT_RATE_LIMIT_REDIS_URL`
 
-### 运行时状态协调
+### 运行时协调
 - `FORGEPILOT_RUNTIME_PLAN_TTL_SECONDS`
 - `FORGEPILOT_RUNTIME_PERMISSION_TTL_SECONDS`
 - `FORGEPILOT_PERMISSION_DECISION_TIMEOUT_SECONDS`
@@ -220,11 +194,10 @@ uvicorn forgepilot_api.app:app --host 127.0.0.1 --port 2026 --reload
 
 ---
 
-<a id="zh-versioning"></a>
+<a id="versioning"></a>
 ## Versioning / Changelog
-> EN: Semantic Versioning with Keep a Changelog style records.
 
-- 版本规范：`SemVer`（`MAJOR.MINOR.PATCH`）
+- 版本策略：`SemVer`（`MAJOR.MINOR.PATCH`）
 - 变更记录：见 [CHANGELOG.md](./CHANGELOG.md)
 - 发布建议：
   - `MAJOR`：不兼容 API/协议变更
@@ -233,61 +206,60 @@ uvicorn forgepilot_api.app:app --host 127.0.0.1 --port 2026 --reload
 
 ---
 
-<a id="zh-security-policy"></a>
+<a id="security-policy"></a>
 ## Security Policy
-> EN: Responsible disclosure process and support matrix are documented.
 
 - 安全策略文档：见 [SECURITY.md](./SECURITY.md)
-- 漏洞提交流程：请勿公开 issue 直接披露可利用细节
+- 漏洞提交流程：请勿在公开 issue 直接披露可利用细节
 - 推荐部署基线：启用鉴权 + 限流 + 审计 + `FORGEPILOT_FILES_MODE=prod`
 
 ---
 
-<a id="zh-faq"></a>
+<a id="faq"></a>
 ## FAQ
 
 <details>
-<summary><strong>Q1: 现在能直接跑通主流程吗？ / Can I run the main flow now?</strong></summary>
+<summary><strong>Q1: 现在能直接跑通主流程吗？</strong></summary>
 
 可以。当前支持从 `plan` 到 `execute` 到 SSE 回流的完整主链路，并有集成测试覆盖。
 
 </details>
 
 <details>
-<summary><strong>Q2: 这是 100% 完全复刻吗？ / Is this 100% parity already?</strong></summary>
-
-核心协议和主流程已可用，长尾行为仍在持续对齐中。
-
-</details>
-
-<details>
-<summary><strong>Q3: 如何公网部署更安全？ / How to deploy safely to public network?</strong></summary>
+<summary><strong>Q2: 如何公网部署更安全？</strong></summary>
 
 至少开启 API Key、限流、审计日志，并将 `FORGEPILOT_FILES_MODE=prod`。
 
 </details>
 
+<details>
+<summary><strong>Q3: 支持哪些模型接口？</strong></summary>
+
+支持 OpenAI-compatible 与 Anthropic，可在配置中切换 Provider。
+
+</details>
+
 ---
 
-<a id="zh-roadmap"></a>
-## 路线图（Roadmap）
+<a id="roadmap"></a>
+## 路线图
 
-- [ ] 长尾行为 100% 对齐与契约回归自动化
+- [ ] 长尾行为对齐与契约回归自动化
 - [ ] 运行时状态扩展到 Redis/Postgres 的多实例方案
 - [ ] 更完整 RBAC / 审计检索 / 安全模板
 - [ ] 桌面发布签名与制品发布链路完善
 
 ---
 
-<a id="zh-star-history"></a>
+<a id="star-history"></a>
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Duang777/forgepilot-agent&type=Date)](https://star-history.com/#Duang777/forgepilot-agent&Date)
 
 ---
 
-<a id="zh-contributors"></a>
-## 贡献者（Contributors）
+<a id="contributors"></a>
+## 贡献者
 
 <a href="https://github.com/Duang777/forgepilot-agent/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=Duang777/forgepilot-agent" alt="contributors" />
@@ -295,18 +267,17 @@ uvicorn forgepilot_api.app:app --host 127.0.0.1 --port 2026 --reload
 
 ---
 
-<a id="zh-contributing"></a>
-## 贡献指南（Contributing）
-> EN: PRs are welcome. Please keep protocol compatibility and test quality.
+<a id="contributing"></a>
+## 贡献指南
 
 - 请先阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)
 - 提交前建议执行：`.\scripts\verify_local.ps1`
-- 建议 PR 描述包含：变更说明、测试结果、兼容性影响
+- PR 描述建议包含：变更说明、测试结果、兼容性影响
 
 ---
 
-<a id="zh-license"></a>
-## 许可证（License）
+<a id="license"></a>
+## 许可证
 
 本项目采用 [MIT License](./LICENSE)。
 
