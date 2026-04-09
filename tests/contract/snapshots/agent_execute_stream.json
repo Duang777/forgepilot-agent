@@ -1,0 +1,34 @@
+[
+  {
+    "type": "session",
+    "sessionId": "exe-session-1"
+  },
+  {
+    "type": "text",
+    "content": "running"
+  },
+  {
+    "type": "tool_use",
+    "id": "u-1",
+    "name": "Read",
+    "input": {
+      "path": "README.md"
+    }
+  },
+  {
+    "type": "tool_result",
+    "toolUseId": "u-1",
+    "name": "Read",
+    "output": "ok",
+    "isError": false
+  },
+  {
+    "type": "result",
+    "subtype": "success",
+    "cost": 0.05,
+    "duration": 321
+  },
+  {
+    "type": "done"
+  }
+]

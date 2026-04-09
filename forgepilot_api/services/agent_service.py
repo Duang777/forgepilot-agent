@@ -17,7 +17,7 @@ from forgepilot_api.config import WORK_DIR, get_all_mcp_config_paths, get_all_sk
 from forgepilot_api.models import ModelConfig, TaskPlan
 from forgepilot_api.services.codex_config_service import load_codex_runtime_config
 from forgepilot_api.services.provider_service import get_config as get_provider_config
-from forgepilot_api.storage.repositories import (
+from forgepilot_api.services.runtime_state_service import (
     create_runtime_session,
     delete_expired_runtime_permissions,
     delete_expired_runtime_plans,
@@ -767,27 +767,36 @@ def _save_images_to_workdir(images: list[dict[str, Any]] | None, work_dir: Path)
     return saved
 
 
-async def _map_sdk_event(event: dict[str, Any]) -> list[dict[str, Any]]:
+async def _map_sdk_event(event: dict[str, Any], tool_names: dict[str, str] | None = None) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     if event.get("type") == "assistant":
         for block in event.get("message", {}).get("content", []):
             if block.get("type") == "text":
                 out.append({"type": "text", "content": block.get("text", "")})
             elif block.get("type") == "tool_use":
+                tool_id = block.get("id")
+                tool_name = block.get("name")
+                if tool_names is not None and tool_id:
+                    tool_names[str(tool_id)] = str(tool_name or "unknown")
                 out.append(
                     {
                         "type": "tool_use",
-                        "id": block.get("id"),
-                        "name": block.get("name"),
+                        "id": tool_id,
+                        "name": tool_name,
                         "input": block.get("input"),
                     }
                 )
     elif event.get("type") == "tool_result":
         result = event.get("result", {})
+        tool_use_id = result.get("tool_use_id")
+        tool_name = None
+        if tool_names is not None and tool_use_id:
+            tool_name = tool_names.get(str(tool_use_id))
         out.append(
             {
                 "type": "tool_result",
-                "toolUseId": result.get("tool_use_id"),
+                "toolUseId": tool_use_id,
+                "name": tool_name,
                 "output": result.get("output", ""),
                 "isError": bool(result.get("is_error", False)),
             }
@@ -974,12 +983,13 @@ async def run_agent(
         return
 
     try:
+        tool_names: dict[str, str] = {}
         async for sdk_event in agent.query(enhanced_prompt):
             if await _is_session_aborted(session):
                 yield {"type": "error", "message": "Execution aborted"}
                 yield {"type": "done"}
                 return
-            mapped = await _map_sdk_event(sdk_event)
+            mapped = await _map_sdk_event(sdk_event, tool_names)
             for event in mapped:
                 yield event
     except Exception as exc:

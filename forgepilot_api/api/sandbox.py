@@ -11,6 +11,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from forgepilot_api.api.utils import SSE_HEADERS
+from forgepilot_api.core.metrics import get_metrics_registry
 from forgepilot_api.sandbox import (
     SANDBOX_IMAGES,
     acquire_provider_with_fallback,
@@ -23,6 +24,7 @@ from forgepilot_api.sandbox.types import SandboxExecOptions, ScriptOptions, Volu
 from forgepilot_api.services.provider_service import get_config as get_provider_config
 
 router = APIRouter(prefix="/sandbox", tags=["sandbox"])
+metrics = get_metrics_registry()
 
 
 def _isolation_label(isolation: str) -> str:
@@ -124,6 +126,7 @@ async def exec_command(body: dict) -> dict[str, Any]:
         finally:
             lease.release()
 
+        metrics.record_sandbox_execution(provider.type, lease.used_fallback)
         return {
             "success": result.exit_code == 0,
             **_provider_payload(provider),
@@ -203,6 +206,7 @@ async def run_file(body: dict) -> dict[str, Any]:
         finally:
             lease.release()
 
+        metrics.record_sandbox_execution(provider.type, lease.used_fallback)
         return {
             "success": result.exit_code == 0,
             "runtime": runtime,
@@ -253,6 +257,7 @@ async def _run_script_content(script: str, runtime: str, body: dict) -> Any:
             except Exception:
                 pass
 
+        metrics.record_sandbox_execution(provider.type, lease.used_fallback)
         return {
             "success": result.exit_code == 0,
             **_provider_payload(provider),
@@ -319,6 +324,7 @@ async def exec_stream(body: dict) -> Any:
                     image=image,
                 )
             )
+            metrics.record_sandbox_execution(provider.type, lease.used_fallback)
 
             for line in (result.stdout or "").splitlines():
                 yield f"data: {json.dumps({'type': 'stdout', 'content': line}, ensure_ascii=False)}\n\n"

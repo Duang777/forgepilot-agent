@@ -94,6 +94,25 @@ def _resolve_files_mode(raw_mode: str | None, node_env: str | None) -> str:
     return "dev"
 
 
+def _resolve_runtime_state_backend(raw_backend: str | None) -> str:
+    backend = (raw_backend or "sqlite").strip().lower()
+    if backend not in {"sqlite", "redis"}:
+        return "sqlite"
+    return backend
+
+
+def _default_cors_origins(node_env: str | None) -> list[str]:
+    if (node_env or "").strip().lower() == "production":
+        return [
+            "http://localhost",
+            "http://127.0.0.1",
+            "http://tauri.localhost",
+            "https://tauri.localhost",
+            "tauri://localhost",
+        ]
+    return ["*"]
+
+
 @dataclass(frozen=True, slots=True)
 class AppSettings:
     app_name: str
@@ -121,6 +140,10 @@ class AppSettings:
     files_dangerous_enabled: bool
     files_acl_default: tuple[str, ...]
     files_acl_subjects: dict[str, tuple[str, ...]]
+    runtime_state_backend: str
+    runtime_state_redis_url: str
+    runtime_state_redis_key_prefix: str
+    runtime_state_fail_open: bool
 
 
 @lru_cache(maxsize=1)
@@ -135,11 +158,12 @@ def get_settings() -> AppSettings:
     )
     files_mode = _resolve_files_mode(os.getenv("FORGEPILOT_FILES_MODE"), os.getenv("NODE_ENV"))
     default_files_acl = ("files.read",) if files_mode == "prod" else ("*",)
+    default_cors_origins = _default_cors_origins(os.getenv("NODE_ENV"))
 
     return AppSettings(
         app_name=os.getenv("FORGEPILOT_APP_NAME", "forgepilot-agent-api"),
         app_version=os.getenv("FORGEPILOT_APP_VERSION", "0.1.1"),
-        cors_origins=_parse_csv(os.getenv("FORGEPILOT_CORS_ORIGINS"), ["*"]),
+        cors_origins=_parse_csv(os.getenv("FORGEPILOT_CORS_ORIGINS"), default_cors_origins),
         cors_allow_credentials=_parse_bool(os.getenv("FORGEPILOT_CORS_ALLOW_CREDENTIALS"), True),
         request_id_header=os.getenv("FORGEPILOT_REQUEST_ID_HEADER", "x-request-id").strip().lower(),
         log_level=os.getenv("FORGEPILOT_LOG_LEVEL", "INFO").strip().upper(),
@@ -168,6 +192,16 @@ def get_settings() -> AppSettings:
         ),
         files_acl_default=_parse_scope_tokens(os.getenv("FORGEPILOT_FILES_ACL_DEFAULT"), default_files_acl),
         files_acl_subjects=_parse_subject_acl(os.getenv("FORGEPILOT_FILES_ACL_SUBJECTS")),
+        runtime_state_backend=_resolve_runtime_state_backend(os.getenv("FORGEPILOT_RUNTIME_STATE_BACKEND")),
+        runtime_state_redis_url=os.getenv(
+            "FORGEPILOT_RUNTIME_STATE_REDIS_URL",
+            "redis://127.0.0.1:6379/1",
+        ).strip(),
+        runtime_state_redis_key_prefix=os.getenv(
+            "FORGEPILOT_RUNTIME_STATE_REDIS_KEY_PREFIX",
+            "forgepilot:runtime",
+        ).strip(),
+        runtime_state_fail_open=_parse_bool(os.getenv("FORGEPILOT_RUNTIME_STATE_FAIL_OPEN"), True),
     )
 
 

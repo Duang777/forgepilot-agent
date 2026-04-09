@@ -12,10 +12,16 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Self-generated brand assets (`docs/assets/logo.svg`, `docs/assets/quick-demo.gif`).
 - New documentation sections: `Versioning / Changelog`, `Security Policy`.
 - Introduced `SECURITY.md` for responsible vulnerability disclosure.
+- Runtime state backend abstraction (`sqlite | redis`) with fail-open/fail-closed behavior.
+- Contract replay snapshots for `/agent`, `/agent/plan`, `/agent/execute` SSE streams.
+- Release workflow (`.github/workflows/release.yml`) and changelog-driven notes generator (`scripts/generate_release_notes.py`).
+- Environment templates: `.env.example` and `.env.production.example`.
 
 ### Changed
 - Replaced third-party style homepage visuals with self-owned assets.
 - Refined documentation structure to project-grade open-source layout.
+- Production CORS defaults now auto-harden when `NODE_ENV=production`.
+- Expanded observability metrics for SSE lifecycle, tool use/error, and sandbox fallback/provider distribution.
 
 ## [0.1.0] - 2026-04-08
 

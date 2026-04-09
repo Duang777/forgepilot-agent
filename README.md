@@ -174,6 +174,7 @@ FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.impor
 - `FORGEPILOT_LOG_LEVEL`
 - `FORGEPILOT_REQUEST_ID_HEADER`
 - `FORGEPILOT_EXPOSE_METRICS`
+- `NODE_ENV`（`production` 下默认 CORS 自动收紧到 localhost / tauri 域）
 
 ### 鉴权与限流
 - `FORGEPILOT_AUTH_MODE` = `off | api_key`
@@ -191,6 +192,14 @@ FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.impor
 - `FORGEPILOT_RUNTIME_PERMISSION_TTL_SECONDS`
 - `FORGEPILOT_PERMISSION_DECISION_TIMEOUT_SECONDS`
 - `FORGEPILOT_PERMISSION_POLL_INTERVAL_SECONDS`
+- `FORGEPILOT_RUNTIME_STATE_BACKEND` = `sqlite | redis`
+- `FORGEPILOT_RUNTIME_STATE_REDIS_URL`
+- `FORGEPILOT_RUNTIME_STATE_REDIS_KEY_PREFIX`
+- `FORGEPILOT_RUNTIME_STATE_FAIL_OPEN`
+
+配置模板：
+- 开发环境：[`./.env.example`](./.env.example)
+- 生产环境：[`./.env.production.example`](./.env.production.example)
 
 ---
 
@@ -199,6 +208,7 @@ FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.impor
 
 - 版本策略：`SemVer`（`MAJOR.MINOR.PATCH`）
 - 变更记录：见 [CHANGELOG.md](./CHANGELOG.md)
+- 发布流水线：推送 tag（`v*`）自动触发 `.github/workflows/release.yml`
 - 发布建议：
   - `MAJOR`：不兼容 API/协议变更
   - `MINOR`：向后兼容功能新增
@@ -244,10 +254,10 @@ FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.impor
 <a id="roadmap"></a>
 ## 路线图
 
-- [ ] 长尾行为对齐与契约回归自动化
-- [ ] 运行时状态扩展到 Redis/Postgres 的多实例方案
+- [ ] 运行时状态进一步扩展到 Postgres（Redis 已支持）
 - [ ] 更完整 RBAC / 审计检索 / 安全模板
 - [ ] 桌面发布签名与制品发布链路完善
+- [ ] 性能基准与容量压测报告固化
 
 ---
 

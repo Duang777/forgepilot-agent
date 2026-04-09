@@ -25,6 +25,7 @@ from forgepilot_api.core.security_middleware import (
 from forgepilot_api.core.settings import get_settings
 from forgepilot_api.sandbox.manager import stop_all_providers
 from forgepilot_api.services.preview_service import stop_all as stop_all_previews
+from forgepilot_api.services.runtime_state_service import reset_runtime_state_backend_cache
 from forgepilot_api.storage.db import init_db
 
 logger = get_logger(__name__)
@@ -43,6 +44,7 @@ async def lifespan(_: FastAPI):
     try:
         yield
     finally:
+        await reset_runtime_state_backend_cache()
         await stop_all_previews()
         await stop_all_providers()
         logger.info("shutdown complete")

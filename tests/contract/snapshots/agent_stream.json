@@ -1,0 +1,28 @@
+[
+  {
+    "type": "session",
+    "sessionId": "agent-session-1"
+  },
+  {
+    "type": "tool_use",
+    "id": "u-2",
+    "name": "Write",
+    "input": {
+      "path": "main.py"
+    }
+  },
+  {
+    "type": "tool_result",
+    "toolUseId": "u-2",
+    "name": "Write",
+    "output": "denied",
+    "isError": true
+  },
+  {
+    "type": "error",
+    "message": "permission denied"
+  },
+  {
+    "type": "done"
+  }
+]
