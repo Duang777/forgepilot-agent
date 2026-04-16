@@ -17,6 +17,29 @@ def _is_anthropic_model(model: str) -> bool:
     return lowered.startswith("claude-") or "claude" in lowered
 
 
+def _is_aborted(abort_controller: object | None) -> bool:
+    if abort_controller is None:
+        return False
+    try:
+        signal = getattr(abort_controller, "signal", None)
+        if signal is not None and bool(getattr(signal, "aborted", False)):
+            return True
+    except Exception:
+        pass
+    try:
+        if bool(getattr(abort_controller, "aborted", False)):
+            return True
+    except Exception:
+        pass
+    try:
+        is_set = getattr(abort_controller, "is_set", None)
+        if callable(is_set) and bool(is_set()):
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def _resolve_config(model_config: ModelConfig | None) -> tuple[str, str | None, str, str | None]:
     codex_cfg = load_codex_runtime_config()
     api_key = (model_config.apiKey if model_config else None) or str(codex_cfg.get("apiKey") or "")
@@ -67,6 +90,7 @@ async def _run_openai_compatible_chat(
     api_key: str,
     base_url: str | None,
     model: str,
+    abort_controller: object | None = None,
 ) -> AsyncGenerator[dict[str, str], None]:
     endpoint = _to_openai_endpoint(base_url)
     payload = {
@@ -81,6 +105,8 @@ async def _run_openai_compatible_chat(
         async with client.stream("POST", endpoint, headers=headers, json=payload) as response:
             response.raise_for_status()
             async for line in response.aiter_lines():
+                if _is_aborted(abort_controller):
+                    return
                 if not line:
                     continue
                 if not line.startswith("data: "):
@@ -108,6 +134,7 @@ async def _run_anthropic_chat(
     api_key: str,
     base_url: str | None,
     model: str,
+    abort_controller: object | None = None,
 ) -> AsyncGenerator[dict[str, str], None]:
     endpoint = _to_anthropic_endpoint(base_url)
     payload = {
@@ -150,6 +177,8 @@ async def _run_anthropic_chat(
         async with client.stream("POST", endpoint, headers=headers, json=payload) as response:
             response.raise_for_status()
             async for line in response.aiter_lines():
+                if _is_aborted(abort_controller):
+                    return
                 if line is None:
                     continue
                 text = line.rstrip("\r")
@@ -180,6 +209,7 @@ async def run_chat(
     model_config: ModelConfig | None = None,
     language: str | None = None,
     conversation: list[ConversationMessage] | None = None,
+    abort_controller: object | None = None,
 ) -> AsyncGenerator[dict, None]:
     api_key, base_url, model, api_type = _resolve_config(model_config)
     if not api_key:
@@ -200,6 +230,9 @@ async def run_chat(
         api_type is None and _is_anthropic_model(model)
     )
     try:
+        if _is_aborted(abort_controller):
+            yield {"type": "done"}
+            return
         if use_anthropic:
             async for event in _run_anthropic_chat(
                 messages=messages,
@@ -207,6 +240,7 @@ async def run_chat(
                 api_key=api_key,
                 base_url=base_url,
                 model=model,
+                abort_controller=abort_controller,
             ):
                 yield event
         else:
@@ -216,9 +250,13 @@ async def run_chat(
                 api_key=api_key,
                 base_url=base_url,
                 model=model,
+                abort_controller=abort_controller,
             ):
                 yield event
     except Exception as exc:
+        if _is_aborted(abort_controller):
+            yield {"type": "done"}
+            return
         yield {"type": "error", "message": str(exc)}
     yield {"type": "done"}
 

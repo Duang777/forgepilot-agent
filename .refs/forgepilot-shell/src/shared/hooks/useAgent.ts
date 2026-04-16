@@ -29,6 +29,43 @@ import {
 import { getAppDataDir, getFileName } from '@/shared/lib/paths';
 
 const AGENT_SERVER_URL = API_BASE_URL;
+const API_BASE_CANDIDATES = Array.from(
+  new Set([
+    AGENT_SERVER_URL,
+    'http://127.0.0.1:2026',
+    'http://localhost:2026',
+    'http://127.0.0.1:2027',
+    'http://localhost:2027',
+    'http://127.0.0.1:2620',
+    'http://localhost:2620',
+  ])
+);
+
+let workingApiBaseUrl: string | null = null;
+
+function buildFallbackUrls(url: string): string[] {
+  try {
+    const parsed = new URL(url);
+    const pathAndQuery = `${parsed.pathname}${parsed.search}`;
+    const preferredBase = workingApiBaseUrl || AGENT_SERVER_URL;
+    const orderedBases = [
+      preferredBase,
+      ...API_BASE_CANDIDATES.filter((base) => base !== preferredBase),
+    ];
+    return orderedBases.map((base) => `${base}${pathAndQuery}`);
+  } catch {
+    return [url];
+  }
+}
+
+function rememberWorkingApiBase(url: string): void {
+  try {
+    const parsed = new URL(url);
+    workingApiBaseUrl = `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    // Ignore invalid URL
+  }
+}
 
 // Helper to get current language translations
 function getErrorMessages() {
@@ -121,40 +158,46 @@ async function fetchWithRetry(
 ): Promise<Response> {
   let lastError: Error | null = null;
   const t = getErrorMessages();
+  const candidateUrls = buildFallbackUrls(url);
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const response = await fetch(url, options);
-      return response;
-    } catch (error) {
-      lastError = error as Error;
-      const errorMessage = lastError.message || '';
+    for (const targetUrl of candidateUrls) {
+      try {
+        const response = await fetch(targetUrl, options);
+        rememberWorkingApiBase(targetUrl);
+        return response;
+      } catch (error) {
+        lastError = error as Error;
+        const errorMessage = lastError.message || '';
 
-      // Don't retry if aborted
-      if (lastError.name === 'AbortError') {
-        throw lastError;
+        // Don't retry if aborted
+        if (lastError.name === 'AbortError') {
+          throw lastError;
+        }
+
+        // Only retry on network errors
+        const isNetworkError =
+          errorMessage === 'Load failed' ||
+          errorMessage === 'Failed to fetch' ||
+          errorMessage.includes('NetworkError') ||
+          errorMessage.includes('ECONNREFUSED');
+
+        if (!isNetworkError) {
+          throw lastError;
+        }
       }
+    }
 
-      // Only retry on network errors
-      const isNetworkError =
-        errorMessage === 'Load failed' ||
-        errorMessage === 'Failed to fetch' ||
-        errorMessage.includes('NetworkError') ||
-        errorMessage.includes('ECONNREFUSED');
-
-      if (!isNetworkError) {
-        throw lastError;
-      }
-
-      // Wait before retrying (exponential backoff)
-      if (attempt < maxRetries - 1) {
-        const delay = retryDelay * Math.pow(2, attempt);
-        const retryMsg = t.retrying
-          .replace('{attempt}', String(attempt + 1))
-          .replace('{max}', String(maxRetries));
-        console.log(`[useAgent] ${retryMsg} (${delay}ms)`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
+    // Wait before retrying (exponential backoff)
+    if (attempt < maxRetries - 1) {
+      const delay = retryDelay * Math.pow(2, attempt);
+      const retryMsg = t.retrying
+        .replace('{attempt}', String(attempt + 1))
+        .replace('{max}', String(maxRetries));
+      console.log(
+        `[useAgent] ${retryMsg} (${delay}ms), endpoints tried: ${candidateUrls.join(', ')}`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 
@@ -1708,11 +1751,16 @@ export function useAgent(): UseAgentReturn {
               console.log('[useAgent] Requesting title generation for prompt:', prompt.slice(0, 80));
               console.log('[useAgent] Title request URL:', `${AGENT_SERVER_URL}/agent/title`);
               console.log('[useAgent] Title request payload:', { prompt: prompt.slice(0, 80), hasModelConfig: !!modelConfig, language });
-              const res = await fetch(`${AGENT_SERVER_URL}/agent/title`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, modelConfig, language }),
-              });
+              const res = await fetchWithRetry(
+                `${AGENT_SERVER_URL}/agent/title`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ prompt, modelConfig, language }),
+                },
+                2,
+                400
+              );
               console.log('[useAgent] Title response status:', res.status);
               if (res.ok) {
                 const data = await res.json();
@@ -2687,9 +2735,14 @@ export function useAgent(): UseAgentReturn {
     // Also tell the server to stop
     if (sessionIdRef.current) {
       try {
-        await fetch(`${AGENT_SERVER_URL}/agent/stop/${sessionIdRef.current}`, {
-          method: 'POST',
-        });
+        await fetchWithRetry(
+          `${AGENT_SERVER_URL}/agent/stop/${sessionIdRef.current}`,
+          {
+            method: 'POST',
+          },
+          2,
+          300
+        );
       } catch {
         // Ignore errors
       }
@@ -2742,17 +2795,22 @@ export function useAgent(): UseAgentReturn {
       }
 
       try {
-        const response = await fetch(`${AGENT_SERVER_URL}/agent/permission`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+        const response = await fetchWithRetry(
+          `${AGENT_SERVER_URL}/agent/permission`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              sessionId: sessionIdRef.current,
+              permissionId,
+              approved,
+            }),
           },
-          body: JSON.stringify({
-            sessionId: sessionIdRef.current,
-            permissionId,
-            approved,
-          }),
-        });
+          2,
+          300
+        );
 
         if (!response.ok) {
           throw new Error(

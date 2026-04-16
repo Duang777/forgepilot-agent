@@ -43,6 +43,11 @@ dev = [
 redis = [
   "redis>=5.0.0",
 ]
+observability = [
+  "opentelemetry-api>=1.26.0",
+  "opentelemetry-sdk>=1.26.0",
+  "opentelemetry-exporter-otlp-proto-http>=1.26.0",
+]
 
 [project.scripts]
 forgepilot-api = "forgepilot_api.__main__:main"

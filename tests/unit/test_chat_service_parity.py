@@ -68,3 +68,20 @@ def test_resolve_config_uses_codex_runtime_when_model_config_missing(monkeypatch
     assert model == "gpt-5.4"
     assert api_type == "openai-completions"
 
+
+def test_run_chat_returns_done_when_aborted_before_start(monkeypatch) -> None:
+    monkeypatch.setattr(
+        chat_service,
+        "load_codex_runtime_config",
+        lambda: {
+            "apiKey": "k",
+            "baseUrl": "https://api.example.com",
+            "model": "gpt-4o",
+            "apiType": "openai-completions",
+        },
+    )
+    abort_event = asyncio.Event()
+    abort_event.set()
+    events = _collect(chat_service.run_chat("hello", model_config=None, abort_controller=abort_event))
+    assert events == [{"type": "done"}]
+

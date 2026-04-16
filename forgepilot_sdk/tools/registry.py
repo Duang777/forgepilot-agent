@@ -35,3 +35,29 @@ def assemble_tool_pool(
         by_name[tool.name] = tool
     return filter_tools(list(by_name.values()), allowed_tools, disallowed_tools)
 
+
+def getAllBaseTools() -> list[ToolDefinition]:
+    return get_all_base_tools()
+
+
+def filterTools(
+    tools: list[ToolDefinition],
+    allowedTools: list[str] | None = None,
+    disallowedTools: list[str] | None = None,
+) -> list[ToolDefinition]:
+    return filter_tools(tools, allowed_tools=allowedTools, disallowed_tools=disallowedTools)
+
+
+def assembleToolPool(
+    baseTools: list[ToolDefinition],
+    mcpTools: list[ToolDefinition] | None = None,
+    allowedTools: list[str] | None = None,
+    disallowedTools: list[str] | None = None,
+) -> list[ToolDefinition]:
+    return assemble_tool_pool(
+        base_tools=baseTools,
+        extra_tools=mcpTools,
+        allowed_tools=allowedTools,
+        disallowed_tools=disallowedTools,
+    )
+

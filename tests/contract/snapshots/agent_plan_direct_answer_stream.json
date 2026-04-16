@@ -1,0 +1,13 @@
+[
+  {
+    "type": "session",
+    "sessionId": "plan-session-direct-1"
+  },
+  {
+    "type": "direct_answer",
+    "content": "This is a direct answer."
+  },
+  {
+    "type": "done"
+  }
+]

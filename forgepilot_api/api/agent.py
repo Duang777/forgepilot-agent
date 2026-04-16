@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import re
+from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -23,11 +26,144 @@ from forgepilot_api.storage.repositories import (
     create_session as repo_create_session,
     get_task as repo_get_task,
     reserve_next_task_index as repo_reserve_next_task_index,
+    upsert_file_by_path as repo_upsert_file_by_path,
     upsert_task as repo_upsert_task,
     update_task as repo_update_task,
 )
 
 router = APIRouter(prefix="/agent", tags=["agent"])
+_task_tool_use_context: dict[str, dict[str, dict[str, Any]]] = {}
+_ABS_WINDOWS_PATH_RE = re.compile(r"([A-Za-z]:\\[^\r\n`\"]+\.[A-Za-z0-9]{1,12})")
+_ABS_POSIX_PATH_RE = re.compile(r"(/[^ \r\n`\"']+\.[A-Za-z0-9]{1,12})")
+_WRITE_OUTPUT_PATH_RE = re.compile(r"File (?:written|edited):\s*(.+?)(?:\s*\(|$)", re.IGNORECASE)
+_KNOWN_FILE_EXTS = {
+    "html",
+    "htm",
+    "css",
+    "js",
+    "ts",
+    "tsx",
+    "jsx",
+    "json",
+    "md",
+    "txt",
+    "py",
+    "yaml",
+    "yml",
+    "csv",
+    "xml",
+    "pdf",
+    "docx",
+    "xlsx",
+    "pptx",
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "webp",
+    "svg",
+}
+
+
+def _infer_file_type(path: str) -> str:
+    ext = Path(path).suffix.lower().lstrip(".")
+    if ext in {"py", "js", "ts", "tsx", "jsx", "java", "go", "rs", "cpp", "c", "h", "rb", "php", "swift", "kt"}:
+        return "code"
+    if ext in {"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico"}:
+        return "image"
+    if ext in {"ppt", "pptx", "key", "odp"}:
+        return "presentation"
+    if ext in {"xls", "xlsx", "numbers", "ods"}:
+        return "spreadsheet"
+    if ext in {"md", "pdf", "doc", "docx", "txt", "rtf", "odt"}:
+        return "document"
+    if ext in {"json", "yaml", "yml", "xml", "toml", "ini", "conf", "cfg", "env", "csv", "tsv"}:
+        return "text"
+    if ext in {"html", "htm"}:
+        return "website"
+    return "text"
+
+
+def _clean_path_token(raw: str) -> str:
+    text = str(raw or "").strip().strip("`").strip("'").strip('"').strip()
+    text = text.rstrip(").,;")
+    return text
+
+
+def _normalize_abs_path(raw: str) -> str | None:
+    candidate = _clean_path_token(raw)
+    if not candidate:
+        return None
+    try:
+        path = Path(candidate).expanduser()
+    except Exception:
+        return None
+    if not path.is_absolute():
+        return None
+    suffix = path.suffix.lower().lstrip(".")
+    if suffix and suffix in _KNOWN_FILE_EXTS:
+        return str(path)
+    return str(path) if suffix else None
+
+
+def _extract_paths_from_tool_context(tool_name: str, tool_input: dict[str, Any], tool_output: str) -> list[str]:
+    candidates: list[str] = []
+    lowered_name = tool_name.lower()
+
+    if lowered_name in {"write", "edit", "multiedit", "notebookedit"}:
+        out_match = _WRITE_OUTPUT_PATH_RE.search(tool_output or "")
+        if out_match:
+            candidates.append(out_match.group(1))
+        for key in ("file_path", "path"):
+            if isinstance(tool_input.get(key), str):
+                candidates.append(str(tool_input.get(key)))
+
+    if lowered_name in {"bash", "sandbox_run_script"}:
+        output = tool_output or ""
+        for match in _ABS_WINDOWS_PATH_RE.findall(output):
+            candidates.append(match)
+        for match in _ABS_POSIX_PATH_RE.findall(output):
+            candidates.append(match)
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for raw in candidates:
+        normalized = _normalize_abs_path(raw)
+        if not normalized:
+            continue
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(normalized)
+    return deduped
+
+
+async def _record_file_artifacts_from_tool_result(task_id: str, event: dict[str, Any]) -> None:
+    if event.get("isError"):
+        return
+    tool_use_id = str(event.get("toolUseId") or "").strip()
+    if not tool_use_id:
+        return
+
+    task_ctx = _task_tool_use_context.get(task_id, {})
+    tool_ctx = task_ctx.get(tool_use_id)
+    if not isinstance(tool_ctx, dict):
+        return
+
+    tool_name = str(tool_ctx.get("name") or "")
+    tool_input = tool_ctx.get("input") if isinstance(tool_ctx.get("input"), dict) else {}
+    tool_output = str(event.get("output") or "")
+    paths = _extract_paths_from_tool_context(tool_name, tool_input, tool_output)
+
+    for path in paths:
+        name = Path(path).name or path
+        await repo_upsert_file_by_path(
+            task_id=task_id,
+            path=path,
+            name=name,
+            file_type=_infer_file_type(path),
+            preview=(tool_output[:500] if tool_output else None),
+        )
 
 
 async def _persist_agent_event(task_id: str, event: dict, prompt: str | None = None, session_id: str | None = None) -> None:
@@ -49,6 +185,12 @@ async def _persist_agent_event(task_id: str, event: dict, prompt: str | None = N
     if etype == "text":
         await repo_create_message(task_id=task_id, msg_type="text", content=event.get("content"))
     elif etype == "tool_use":
+        tool_use_id = str(event.get("id") or "").strip()
+        if tool_use_id:
+            _task_tool_use_context.setdefault(task_id, {})[tool_use_id] = {
+                "name": event.get("name"),
+                "input": event.get("input") if isinstance(event.get("input"), dict) else {},
+            }
         await repo_create_message(
             task_id=task_id,
             msg_type="tool_use",
@@ -64,6 +206,7 @@ async def _persist_agent_event(task_id: str, event: dict, prompt: str | None = N
             tool_use_id=event.get("toolUseId"),
             error_message=event.get("output") if event.get("isError") else None,
         )
+        await _record_file_artifacts_from_tool_result(task_id, event)
     elif etype == "result":
         await repo_create_message(
             task_id=task_id,
@@ -78,9 +221,12 @@ async def _persist_agent_event(task_id: str, event: dict, prompt: str | None = N
             cost=event.get("cost"),
             duration=event.get("duration"),
         )
+        if status != "running":
+            _task_tool_use_context.pop(task_id, None)
     elif etype == "error":
         await repo_create_message(task_id=task_id, msg_type="error", error_message=event.get("message"))
         await repo_update_task(task_id, status="error")
+        _task_tool_use_context.pop(task_id, None)
     elif etype == "permission_request":
         await repo_create_message(
             task_id=task_id,

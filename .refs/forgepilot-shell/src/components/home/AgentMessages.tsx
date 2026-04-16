@@ -24,6 +24,15 @@ interface AgentMessagesProps {
   isRunning: boolean;
 }
 
+function decodeErrorDetail(raw: string): string {
+  if (!raw) return '';
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 // Detect execution environment from tool name
 function getExecutionEnv(toolName: string): 'sandbox' | 'local' | null {
   if (toolName.includes('sandbox')) {
@@ -276,6 +285,7 @@ function ErrorMessage({ message }: { message: string }) {
     const parts = message.split('|');
     const baseUrl = parts[1] || '';
     const logPath = parts[2] || '';
+    const detail = decodeErrorDetail(parts.slice(3).join('|'));
 
     const openLogFile = async () => {
       try {
@@ -298,12 +308,28 @@ function ErrorMessage({ message }: { message: string }) {
       'Custom API ({baseUrl}) may not be compatible with Claude Code SDK. Please check the API configuration or try a different provider. Log file: {logPath}')
       .replace('{baseUrl}', baseUrl)
       .replace('{logPath}', logPath);
+    const normalizedErrorMsg = errorMsg
+      .replace(
+        'may not be compatible with Claude Code SDK. Please check the API configuration or try a different provider.',
+        'request failed. Please check API configuration, network, or upstream service status.'
+      )
+      .replace(
+        '可能与 Claude Code SDK 不兼容。请检查 API 配置或尝试其他服务商。',
+        '请求失败，请检查 API 配置、网络或上游服务状态。'
+      );
 
     return (
       <div className="flex flex-col gap-3 rounded-lg bg-amber-50 p-4 dark:bg-amber-950">
         <div className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-300">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
-          <span>{errorMsg}</span>
+          <div className="flex flex-col gap-1">
+            <span>{normalizedErrorMsg}</span>
+            {detail && (
+              <span className="font-mono text-xs opacity-90">
+                Detail: {detail}
+              </span>
+            )}
+          </div>
         </div>
         <Button
           variant="outline"
@@ -320,7 +346,9 @@ function ErrorMessage({ message }: { message: string }) {
 
   // Check for internal error
   if (message.startsWith('__INTERNAL_ERROR__|')) {
-    const logPath = message.replace('__INTERNAL_ERROR__|', '');
+    const parts = message.split('|');
+    const logPath = parts[1] || '';
+    const detail = decodeErrorDetail(parts.slice(2).join('|'));
 
     const openLogFile = async () => {
       try {
@@ -345,9 +373,16 @@ function ErrorMessage({ message }: { message: string }) {
       <div className="flex flex-col gap-3 rounded-lg bg-red-50 p-4 dark:bg-red-950">
         <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
-          <span>
-            {t.common.errors.internalError.replace('{logPath}', logPath)}
-          </span>
+          <div className="flex flex-col gap-1">
+            <span>
+              {t.common.errors.internalError.replace('{logPath}', logPath)}
+            </span>
+            {detail && (
+              <span className="font-mono text-xs opacity-90">
+                Detail: {detail}
+              </span>
+            )}
+          </div>
         </div>
         <Button
           variant="outline"

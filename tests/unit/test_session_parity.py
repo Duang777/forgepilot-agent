@@ -81,6 +81,7 @@ def test_append_rename_tag_fork_delete(tmp_path) -> None:
 def test_load_legacy_forgepilot_session_file(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv("FORGEPILOT_SESSION_STRICT_PARITY", "1")
 
     legacy_root = Path(tmp_path) / ".forgepilot" / "sessions"
     legacy_root.mkdir(parents=True, exist_ok=True)
@@ -92,13 +93,76 @@ def test_load_legacy_forgepilot_session_file(monkeypatch, tmp_path) -> None:
     }
     legacy_file.write_text(json.dumps(legacy_payload), encoding="utf-8")
 
+    # Strict parity default follows upstream behavior: no legacy migration.
     loaded = load_session("legacy-1")
+    assert loaded is None
+
+    migrated = Path(tmp_path) / ".open-agent-sdk" / "sessions" / "legacy-1" / "transcript.json"
+    assert not migrated.exists()
+
+
+def test_load_legacy_migration_available_when_strict_parity_disabled(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv("FORGEPILOT_SESSION_STRICT_PARITY", "0")
+
+    legacy_root = Path(tmp_path) / ".forgepilot" / "sessions"
+    legacy_root.mkdir(parents=True, exist_ok=True)
+    legacy_file = legacy_root / "legacy-2.json"
+    legacy_payload = {
+        "session_id": "legacy-2",
+        "messages": [{"role": "user", "content": "legacy"}],
+        "metadata": {"summary": "legacy summary", "model": "claude"},
+    }
+    legacy_file.write_text(json.dumps(legacy_payload), encoding="utf-8")
+
+    loaded = load_session("legacy-2")
     assert loaded is not None
-    assert loaded["metadata"]["id"] == "legacy-1"
+    assert loaded["metadata"]["id"] == "legacy-2"
     assert loaded["metadata"]["summary"] == "legacy summary"
     assert loaded["messages"][0]["content"] == "legacy"
 
-    migrated = Path(tmp_path) / ".open-agent-sdk" / "sessions" / "legacy-1" / "transcript.json"
+    migrated = Path(tmp_path) / ".open-agent-sdk" / "sessions" / "legacy-2" / "transcript.json"
     assert migrated.exists()
+
+
+def test_append_creates_session_when_missing(tmp_path) -> None:
+    session_dir = tmp_path / "sessions"
+    append_to_session("new-one", ConversationMessage(role="user", content="hello"), sessions_dir=session_dir)
+
+    # Parity with upstream TypeScript SDK:
+    # append on missing session is a no-op.
+    loaded = load_session("new-one", sessions_dir=session_dir)
+    assert loaded is None
+
+
+def test_load_session_returns_raw_malformed_payload_in_strict_parity(tmp_path) -> None:
+    session_dir = tmp_path / "sessions"
+    broken = session_dir / "bad-1" / "transcript.json"
+    broken.parent.mkdir(parents=True, exist_ok=True)
+    broken.write_text(json.dumps({"metadata": "oops", "messages": {"x": 1}}), encoding="utf-8")
+
+    loaded = load_session("bad-1", sessions_dir=session_dir)
+    assert loaded is not None
+    assert loaded["metadata"] == "oops"
+    assert loaded["messages"] == {"x": 1}
+
+
+def test_default_model_matches_upstream_literal(tmp_path) -> None:
+    session_dir = tmp_path / "sessions"
+
+    save_session("m1", [ConversationMessage(role="user", content="hi")], sessions_dir=session_dir)
+    loaded = load_session("m1", sessions_dir=session_dir)
+    assert loaded is not None
+    assert loaded["metadata"]["model"] == "claude-sonnet-4-6"
+
+    listed = list_sessions(sessions_dir=session_dir)
+    assert listed
+    assert listed[0]["model"] == "claude-sonnet-4-6"
+
+
+def test_delete_session_returns_true_for_missing_session(tmp_path) -> None:
+    session_dir = tmp_path / "sessions"
+    assert delete_session("absent", sessions_dir=session_dir) is True
 
 

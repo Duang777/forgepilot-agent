@@ -179,6 +179,41 @@ async def create_file(
     return rows[0] if rows else {}
 
 
+async def upsert_file_by_path(
+    *,
+    task_id: str,
+    path: str,
+    name: str,
+    file_type: str,
+    preview: str | None = None,
+    thumbnail: str | None = None,
+) -> dict[str, Any]:
+    existing = await fetch_one(
+        "SELECT * FROM files WHERE task_id=? AND path=? ORDER BY id DESC LIMIT 1",
+        (task_id, path),
+    )
+    if existing and existing.get("id") is not None:
+        await execute(
+            """
+            UPDATE files
+            SET name=?, type=?, preview=COALESCE(?, preview), thumbnail=COALESCE(?, thumbnail), created_at=datetime('now')
+            WHERE id=?
+            """,
+            (name, file_type, preview, thumbnail, existing["id"]),
+        )
+        row = await fetch_one("SELECT * FROM files WHERE id=?", (existing["id"],))
+        return row or existing
+
+    return await create_file(
+        task_id=task_id,
+        name=name,
+        file_type=file_type,
+        path=path,
+        preview=preview,
+        thumbnail=thumbnail,
+    )
+
+
 async def list_files_by_task(task_id: str) -> list[dict[str, Any]]:
     return await fetch_all("SELECT * FROM files WHERE task_id=? ORDER BY created_at DESC", (task_id,))
 

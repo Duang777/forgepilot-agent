@@ -51,3 +51,28 @@ def test_runtime_state_redis_fail_closed_raises(monkeypatch) -> None:
     finally:
         _reset_backend_cache()
         reset_settings_cache()
+
+
+def test_runtime_state_sqlite_permission_event_noop(monkeypatch) -> None:
+    monkeypatch.setenv("FORGEPILOT_RUNTIME_STATE_BACKEND", "sqlite")
+    reset_settings_cache()
+    _reset_backend_cache()
+    try:
+        result = _run(
+            runtime_state_service.wait_runtime_permission_event(
+                session_id="s1",
+                permission_id="p1",
+                timeout_seconds=0.1,
+            )
+        )
+        assert result is None
+        _run(
+            runtime_state_service.publish_runtime_permission_event(
+                session_id="s1",
+                permission_id="p1",
+                status="approved",
+            )
+        )
+    finally:
+        _reset_backend_cache()
+        reset_settings_cache()

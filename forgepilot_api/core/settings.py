@@ -82,6 +82,34 @@ def _parse_subject_acl(raw: str | None) -> dict[str, tuple[str, ...]]:
     return out
 
 
+def _parse_rbac_policies(raw: str | None) -> tuple[tuple[str, str, tuple[str, ...]], ...]:
+    if raw is None:
+        return ()
+    stripped = raw.strip()
+    if not stripped:
+        return ()
+    out: list[tuple[str, str, tuple[str, ...]]] = []
+    for entry in stripped.split(";"):
+        item = entry.strip()
+        if not item or "=" not in item or ":" not in item:
+            continue
+        lhs, scopes_raw = item.split("=", 1)
+        method_raw, path_raw = lhs.split(":", 1)
+        method = method_raw.strip().upper()
+        path = path_raw.strip()
+        if not method:
+            continue
+        if not path:
+            continue
+        if not path.startswith("/"):
+            path = f"/{path}"
+        scopes = _parse_scope_tokens(scopes_raw, ())
+        if not scopes:
+            continue
+        out.append((method, path, scopes))
+    return tuple(out)
+
+
 def _resolve_files_mode(raw_mode: str | None, node_env: str | None) -> str:
     if raw_mode:
         lowered = raw_mode.strip().lower()
@@ -122,10 +150,23 @@ class AppSettings:
     request_id_header: str
     log_level: str
     expose_metrics: bool
+    telemetry_enabled: bool
+    telemetry_exporter: str
+    telemetry_otlp_endpoint: str | None
     auth_mode: str
+    jwt_header: str
+    jwt_bearer_prefix: str
+    jwt_secret: str
+    jwt_algorithms: tuple[str, ...]
+    jwt_issuer: str | None
+    jwt_audience: str | None
+    jwt_subject_claim: str
+    jwt_scope_claim: str
+    jwt_roles_claim: str
     api_key_header: str
     api_keys: list[str]
     auth_exempt_paths: list[str]
+    auth_subject_scopes: dict[str, tuple[str, ...]]
     rate_limit_enabled: bool
     rate_limit_requests: int
     rate_limit_window_seconds: int
@@ -140,6 +181,10 @@ class AppSettings:
     files_dangerous_enabled: bool
     files_acl_default: tuple[str, ...]
     files_acl_subjects: dict[str, tuple[str, ...]]
+    rbac_enabled: bool
+    rbac_default_allow: bool
+    rbac_policies: tuple[tuple[str, str, tuple[str, ...]], ...]
+    rbac_subject_scopes: dict[str, tuple[str, ...]]
     runtime_state_backend: str
     runtime_state_redis_url: str
     runtime_state_redis_key_prefix: str
@@ -149,7 +194,7 @@ class AppSettings:
 @lru_cache(maxsize=1)
 def get_settings() -> AppSettings:
     auth_mode = os.getenv("FORGEPILOT_AUTH_MODE", "off").strip().lower() or "off"
-    if auth_mode not in {"off", "api_key"}:
+    if auth_mode not in {"off", "api_key", "jwt", "api_key_or_jwt"}:
         auth_mode = "off"
 
     api_keys = _parse_csv(
@@ -168,13 +213,31 @@ def get_settings() -> AppSettings:
         request_id_header=os.getenv("FORGEPILOT_REQUEST_ID_HEADER", "x-request-id").strip().lower(),
         log_level=os.getenv("FORGEPILOT_LOG_LEVEL", "INFO").strip().upper(),
         expose_metrics=_parse_bool(os.getenv("FORGEPILOT_EXPOSE_METRICS"), True),
+        telemetry_enabled=_parse_bool(os.getenv("FORGEPILOT_OTEL_ENABLED"), False),
+        telemetry_exporter=os.getenv("FORGEPILOT_OTEL_EXPORTER", "console").strip().lower(),
+        telemetry_otlp_endpoint=(os.getenv("FORGEPILOT_OTEL_OTLP_ENDPOINT", "").strip() or None),
         auth_mode=auth_mode,
+        jwt_header=os.getenv("FORGEPILOT_JWT_HEADER", "authorization").strip().lower(),
+        jwt_bearer_prefix=os.getenv("FORGEPILOT_JWT_BEARER_PREFIX", "bearer").strip().lower(),
+        jwt_secret=os.getenv("FORGEPILOT_JWT_SECRET", "").strip(),
+        jwt_algorithms=tuple(
+            item.upper()
+            for item in _parse_csv(os.getenv("FORGEPILOT_JWT_ALGORITHMS"), ["HS256"])
+            if item.strip()
+        )
+        or ("HS256",),
+        jwt_issuer=(os.getenv("FORGEPILOT_JWT_ISSUER", "").strip() or None),
+        jwt_audience=(os.getenv("FORGEPILOT_JWT_AUDIENCE", "").strip() or None),
+        jwt_subject_claim=os.getenv("FORGEPILOT_JWT_SUBJECT_CLAIM", "sub").strip(),
+        jwt_scope_claim=os.getenv("FORGEPILOT_JWT_SCOPE_CLAIM", "scope").strip(),
+        jwt_roles_claim=os.getenv("FORGEPILOT_JWT_ROLES_CLAIM", "roles").strip(),
         api_key_header=os.getenv("FORGEPILOT_API_KEY_HEADER", "x-api-key").strip().lower(),
         api_keys=api_keys,
         auth_exempt_paths=_parse_csv(
             os.getenv("FORGEPILOT_AUTH_EXEMPT_PATHS"),
             ["/", "/health", "/metrics", "/docs", "/redoc", "/openapi.json"],
         ),
+        auth_subject_scopes=_parse_subject_acl(os.getenv("FORGEPILOT_AUTH_SUBJECT_SCOPES")),
         rate_limit_enabled=_parse_bool(os.getenv("FORGEPILOT_RATE_LIMIT_ENABLED"), False),
         rate_limit_requests=_parse_int(os.getenv("FORGEPILOT_RATE_LIMIT_REQUESTS"), 60, minimum=1),
         rate_limit_window_seconds=_parse_int(os.getenv("FORGEPILOT_RATE_LIMIT_WINDOW_SECONDS"), 60, minimum=1),
@@ -192,6 +255,10 @@ def get_settings() -> AppSettings:
         ),
         files_acl_default=_parse_scope_tokens(os.getenv("FORGEPILOT_FILES_ACL_DEFAULT"), default_files_acl),
         files_acl_subjects=_parse_subject_acl(os.getenv("FORGEPILOT_FILES_ACL_SUBJECTS")),
+        rbac_enabled=_parse_bool(os.getenv("FORGEPILOT_RBAC_ENABLED"), False),
+        rbac_default_allow=_parse_bool(os.getenv("FORGEPILOT_RBAC_DEFAULT_ALLOW"), True),
+        rbac_policies=_parse_rbac_policies(os.getenv("FORGEPILOT_RBAC_POLICIES")),
+        rbac_subject_scopes=_parse_subject_acl(os.getenv("FORGEPILOT_RBAC_SUBJECT_SCOPES")),
         runtime_state_backend=_resolve_runtime_state_backend(os.getenv("FORGEPILOT_RUNTIME_STATE_BACKEND")),
         runtime_state_redis_url=os.getenv(
             "FORGEPILOT_RUNTIME_STATE_REDIS_URL",

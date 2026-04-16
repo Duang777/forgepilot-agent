@@ -16,12 +16,19 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Contract replay snapshots for `/agent`, `/agent/plan`, `/agent/execute` SSE streams.
 - Release workflow (`.github/workflows/release.yml`) and changelog-driven notes generator (`scripts/generate_release_notes.py`).
 - Environment templates: `.env.example` and `.env.production.example`.
+- JWT auth mode (`jwt`, `api_key_or_jwt`) with configurable claims and HMAC algorithms.
+- Route-level RBAC middleware with policy + subject-scope mapping.
+- OpenTelemetry integration hooks for HTTP/SSE/agent execution spans.
+- Redis permission decision event path (pub/sub) with polling fallback.
+- Automated parity reporting pipeline (`scripts/generate_parity_report.py` + `docs/parity_report.md`).
 
 ### Changed
 - Replaced third-party style homepage visuals with self-owned assets.
 - Refined documentation structure to project-grade open-source layout.
 - Production CORS defaults now auto-harden when `NODE_ENV=production`.
 - Expanded observability metrics for SSE lifecycle, tool use/error, and sandbox fallback/provider distribution.
+- Files ACL now accepts auth-scopes attached by API key/JWT authentication.
+- CI now enforces strict baseline parity checks on each push/PR.
 
 ## [0.1.0] - 2026-04-08
 

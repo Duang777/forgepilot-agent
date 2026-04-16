@@ -634,3 +634,19 @@ async def close_all_connections(connections: list[MCPConnection] | None = None) 
                 _ACTIVE_CONNECTIONS.remove(conn)
 
 
+async def connectMCPServer(name: str, config: dict[str, Any]) -> MCPConnection:
+    return await connect_mcp_server(name, config)
+
+
+async def closeAllConnections(connections: list[MCPConnection] | None = None) -> None:
+    await close_all_connections(connections)
+
+
+def loadMcpServersFromFile(path: Path) -> dict[str, dict[str, Any]]:
+    return load_mcp_servers_from_file(path)
+
+
+def loadDefaultMcpServers() -> dict[str, dict[str, Any]]:
+    return load_default_mcp_servers()
+
+

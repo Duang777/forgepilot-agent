@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import contextlib
 import json
+import logging
+import os
 import shutil
+import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -9,9 +14,29 @@ from typing import Any
 
 from forgepilot_sdk.types import ConversationMessage
 
+logger = logging.getLogger(__name__)
+_DEFAULT_MODEL_FALLBACK = "claude-sonnet-4-6"
+_LOCK_ACQUIRE_TIMEOUT_SECONDS = float(os.getenv("FORGEPILOT_SESSION_LOCK_TIMEOUT_SECONDS", "10"))
+_LOCK_STALE_SECONDS = float(os.getenv("FORGEPILOT_SESSION_LOCK_STALE_SECONDS", "60"))
+_LOCK_RETRY_INTERVAL_SECONDS = 0.05
+_THREAD_LOCKS: dict[str, threading.RLock] = {}
+_THREAD_LOCKS_GUARD = threading.Lock()
+
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _strict_session_parity() -> bool:
+    raw = os.getenv("FORGEPILOT_SESSION_STRICT_PARITY", "1").strip().lower()
+    return raw not in {"0", "false", "no", "off"}
+
+
+def _default_model() -> str:
+    if _strict_session_parity():
+        return _DEFAULT_MODEL_FALLBACK
+    model = os.getenv("FORGEPILOT_DEFAULT_MODEL", "").strip()
+    return model or _DEFAULT_MODEL_FALLBACK
 
 
 def _session_root(sessions_dir: str | Path | None = None) -> Path:
@@ -51,7 +76,7 @@ def _default_metadata(session_id: str, metadata: dict[str, Any] | None = None) -
     base: dict[str, Any] = {
         "id": session_id,
         "cwd": str(payload.get("cwd") or Path.cwd()),
-        "model": str(payload.get("model") or "claude-sonnet-4-6"),
+        "model": str(payload.get("model") or _default_model()),
         "createdAt": created_at,
         "updatedAt": updated_at,
         "messageCount": 0,
@@ -74,6 +99,103 @@ def _ensure_session_payload(
     return {"metadata": merged_metadata, "messages": normalized_messages}
 
 
+def _normalize_loaded_payload(session_id: str, raw: Any) -> tuple[dict[str, Any], bool]:
+    if not isinstance(raw, dict):
+        return _ensure_session_payload(session_id, [], metadata={}), True
+
+    raw_metadata = raw.get("metadata")
+    raw_messages = raw.get("messages")
+    repaired = not isinstance(raw_metadata, dict) or not isinstance(raw_messages, list)
+
+    metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
+    messages = raw_messages if isinstance(raw_messages, list) else []
+    normalized = _ensure_session_payload(session_id, messages, metadata=metadata)
+
+    # Preserve non-standard metadata fields (for compatibility) while enforcing invariants.
+    merged_meta = {**normalized["metadata"], **metadata}
+    if str(merged_meta.get("id") or "") != session_id:
+        repaired = True
+    merged_meta["id"] = session_id
+    if merged_meta.get("messageCount") != len(normalized["messages"]):
+        repaired = True
+    merged_meta["messageCount"] = len(normalized["messages"])
+    if not merged_meta.get("createdAt"):
+        repaired = True
+        merged_meta["createdAt"] = _utc_now_iso()
+    if not merged_meta.get("updatedAt"):
+        repaired = True
+        merged_meta["updatedAt"] = str(merged_meta["createdAt"])
+    if not merged_meta.get("cwd"):
+        repaired = True
+        merged_meta["cwd"] = str(Path.cwd())
+    if not merged_meta.get("model"):
+        repaired = True
+        merged_meta["model"] = _default_model()
+
+    normalized["metadata"] = merged_meta
+    return normalized, repaired
+
+
+def _session_key(session_id: str, sessions_dir: str | Path | None = None) -> str:
+    try:
+        return str(_session_path(session_id, sessions_dir=sessions_dir).resolve())
+    except Exception:
+        return str(_session_path(session_id, sessions_dir=sessions_dir))
+
+
+def _get_thread_lock(key: str) -> threading.RLock:
+    with _THREAD_LOCKS_GUARD:
+        lock = _THREAD_LOCKS.get(key)
+        if lock is None:
+            lock = threading.RLock()
+            _THREAD_LOCKS[key] = lock
+        return lock
+
+
+@contextlib.contextmanager
+def _session_write_lock(session_id: str, sessions_dir: str | Path | None = None):
+    key = _session_key(session_id, sessions_dir=sessions_dir)
+    thread_lock = _get_thread_lock(key)
+    with thread_lock:
+        lock_dir = _session_path(session_id, sessions_dir=sessions_dir)
+        lock_dir.mkdir(parents=True, exist_ok=True)
+        lock_path = lock_dir / ".transcript.lock"
+
+        start = time.monotonic()
+        fd: int | None = None
+
+        while True:
+            try:
+                fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(fd, f"{os.getpid()} {time.time()}".encode("utf-8", errors="ignore"))
+                break
+            except FileExistsError:
+                try:
+                    age = time.time() - lock_path.stat().st_mtime
+                    if age > _LOCK_STALE_SECONDS:
+                        lock_path.unlink(missing_ok=True)
+                        continue
+                except Exception:
+                    pass
+
+                if (time.monotonic() - start) > _LOCK_ACQUIRE_TIMEOUT_SECONDS:
+                    raise TimeoutError(f"Timed out waiting for session write lock: {lock_path}")
+                time.sleep(_LOCK_RETRY_INTERVAL_SECONDS)
+
+        try:
+            yield
+        finally:
+            if fd is not None:
+                try:
+                    os.close(fd)
+                except Exception:
+                    pass
+            try:
+                lock_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+
 def _write_session_payload(
     session_id: str,
     payload: dict[str, Any],
@@ -82,7 +204,70 @@ def _write_session_payload(
 ) -> None:
     file_path = _session_file(session_id, sessions_dir=sessions_dir)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    temp_path = file_path.with_name(f".{file_path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(temp_path, file_path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+
+
+def _load_session_unlocked(
+    session_id: str,
+    *,
+    sessions_dir: str | Path | None = None,
+    migrate_legacy: bool = True,
+    persist_repaired: bool = True,
+    lock_held: bool = False,
+) -> dict[str, Any] | None:
+    path = _session_file(session_id, sessions_dir=sessions_dir)
+    if not path.exists():
+        if not migrate_legacy:
+            return None
+        legacy = _load_legacy_session(session_id)
+        if not legacy:
+            return None
+        if migrate_legacy:
+            if lock_held:
+                _write_session_payload(session_id, legacy, sessions_dir=sessions_dir)
+            else:
+                with _session_write_lock(session_id, sessions_dir=sessions_dir):
+                    if not _session_file(session_id, sessions_dir=sessions_dir).exists():
+                        _write_session_payload(session_id, legacy, sessions_dir=sessions_dir)
+        return legacy
+
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.warning("failed to parse session transcript session_id=%s path=%s error=%s", session_id, path, exc)
+        return None
+
+    if _strict_session_parity():
+        return raw if isinstance(raw, dict) else None
+
+    normalized, repaired = _normalize_loaded_payload(session_id, raw)
+    if not repaired or not persist_repaired:
+        return normalized
+
+    if lock_held:
+        _write_session_payload(session_id, normalized, sessions_dir=sessions_dir)
+        return normalized
+
+    with _session_write_lock(session_id, sessions_dir=sessions_dir):
+        latest_path = _session_file(session_id, sessions_dir=sessions_dir)
+        if latest_path.exists():
+            try:
+                latest_raw = json.loads(latest_path.read_text(encoding="utf-8"))
+                latest_normalized, latest_repaired = _normalize_loaded_payload(session_id, latest_raw)
+            except Exception:
+                latest_normalized, latest_repaired = normalized, True
+            if latest_repaired:
+                _write_session_payload(session_id, latest_normalized, sessions_dir=sessions_dir)
+            return latest_normalized
+
+        _write_session_payload(session_id, normalized, sessions_dir=sessions_dir)
+        return normalized
 
 
 def save_session(
@@ -92,14 +277,26 @@ def save_session(
     *,
     sessions_dir: str | Path | None = None,
 ) -> None:
-    existing = load_session(session_id, sessions_dir=sessions_dir)
-    existing_meta = existing.get("metadata") if existing else {}
-    merged_meta = {**(existing_meta if isinstance(existing_meta, dict) else {}), **(metadata or {})}
-    merged_meta["id"] = session_id
-    merged_meta["createdAt"] = str(merged_meta.get("createdAt") or _utc_now_iso())
-    merged_meta["updatedAt"] = _utc_now_iso()
-    payload = _ensure_session_payload(session_id, messages, merged_meta)
-    _write_session_payload(session_id, payload, sessions_dir=sessions_dir)
+    if _strict_session_parity():
+        payload = _ensure_session_payload(session_id, messages, metadata or {})
+        _write_session_payload(session_id, payload, sessions_dir=sessions_dir)
+        return
+
+    with _session_write_lock(session_id, sessions_dir=sessions_dir):
+        existing = _load_session_unlocked(
+            session_id,
+            sessions_dir=sessions_dir,
+            migrate_legacy=True,
+            persist_repaired=False,
+            lock_held=True,
+        )
+        existing_meta = existing.get("metadata") if existing else {}
+        merged_meta = {**(existing_meta if isinstance(existing_meta, dict) else {}), **(metadata or {})}
+        merged_meta["id"] = session_id
+        merged_meta["createdAt"] = str(merged_meta.get("createdAt") or _utc_now_iso())
+        merged_meta["updatedAt"] = _utc_now_iso()
+        payload = _ensure_session_payload(session_id, messages, merged_meta)
+        _write_session_payload(session_id, payload, sessions_dir=sessions_dir)
 
 
 def append_to_session(
@@ -108,23 +305,41 @@ def append_to_session(
     *,
     sessions_dir: str | Path | None = None,
 ) -> None:
-    data = load_session(session_id, sessions_dir=sessions_dir)
-    if not data:
-        return
+    with _session_write_lock(session_id, sessions_dir=sessions_dir):
+        data = _load_session_unlocked(
+            session_id,
+            sessions_dir=sessions_dir,
+            migrate_legacy=True,
+            persist_repaired=False,
+            lock_held=True,
+        )
+        if not data:
+            if _strict_session_parity():
+                return
+            messages = [_normalize_message(message)]
+            metadata: dict[str, Any] = {
+                "id": session_id,
+                "createdAt": _utc_now_iso(),
+                "updatedAt": _utc_now_iso(),
+            }
+            payload = _ensure_session_payload(session_id, messages, metadata)
+            _write_session_payload(session_id, payload, sessions_dir=sessions_dir)
+            return
 
-    messages = data.get("messages", [])
-    if not isinstance(messages, list):
-        messages = []
-    messages.append(_normalize_message(message))
+        messages = data.get("messages", [])
+        if not isinstance(messages, list):
+            messages = []
+        messages = [*messages, _normalize_message(message)]
 
-    metadata = data.get("metadata", {})
-    if not isinstance(metadata, dict):
-        metadata = {}
-    metadata["updatedAt"] = _utc_now_iso()
-    metadata["messageCount"] = len(messages)
-    metadata["id"] = session_id
+        metadata = data.get("metadata", {})
+        if not isinstance(metadata, dict):
+            metadata = {}
+        metadata["updatedAt"] = _utc_now_iso()
+        metadata["messageCount"] = len(messages)
+        metadata["id"] = session_id
 
-    save_session(session_id, messages, metadata, sessions_dir=sessions_dir)
+        payload = _ensure_session_payload(session_id, messages, metadata)
+        _write_session_payload(session_id, payload, sessions_dir=sessions_dir)
 
 
 def _load_legacy_session(session_id: str) -> dict[str, Any] | None:
@@ -151,51 +366,30 @@ def _load_legacy_session(session_id: str) -> dict[str, Any] | None:
 
 
 def load_session(session_id: str, *, sessions_dir: str | Path | None = None) -> dict[str, Any] | None:
-    path = _session_file(session_id, sessions_dir=sessions_dir)
-    if not path.exists():
-        legacy = _load_legacy_session(session_id)
-        if legacy:
-            _write_session_payload(session_id, legacy, sessions_dir=sessions_dir)
-            return legacy
-        return None
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            return None
-        metadata = data.get("metadata")
-        messages = data.get("messages")
-        if not isinstance(metadata, dict) or not isinstance(messages, list):
-            return _ensure_session_payload(session_id, messages if isinstance(messages, list) else [], metadata={})
-        normalized = _ensure_session_payload(session_id, messages, metadata=metadata)
-        # Preserve non-standard metadata fields (for compatibility).
-        merged_meta = {**normalized["metadata"], **metadata}
-        normalized["metadata"] = merged_meta
-        normalized["metadata"]["messageCount"] = len(normalized["messages"])
-        normalized["metadata"]["id"] = session_id
-        return normalized
-    except Exception:
-        return None
+    return _load_session_unlocked(
+        session_id,
+        sessions_dir=sessions_dir,
+        migrate_legacy=not _strict_session_parity(),
+        persist_repaired=True,
+        lock_held=False,
+    )
 
 
 def list_sessions(*, sessions_dir: str | Path | None = None) -> list[dict[str, Any]]:
     sessions: list[dict[str, Any]] = []
     for path in _session_root(sessions_dir).glob("*/transcript.json"):
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            if not isinstance(data, dict):
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            if _strict_session_parity():
+                if not isinstance(raw, dict):
+                    continue
+                metadata = raw.get("metadata")
+                if isinstance(metadata, dict):
+                    sessions.append(metadata)
                 continue
-            metadata = data.get("metadata")
-            messages = data.get("messages")
-            if not isinstance(metadata, dict) or not isinstance(messages, list):
-                continue
-            metadata = {**metadata}
-            metadata["id"] = str(metadata.get("id") or path.parent.name)
-            metadata["messageCount"] = len(messages)
-            metadata["updatedAt"] = str(metadata.get("updatedAt") or metadata.get("createdAt") or _utc_now_iso())
-            metadata["createdAt"] = str(metadata.get("createdAt") or metadata["updatedAt"])
-            metadata["cwd"] = str(metadata.get("cwd") or Path.cwd())
-            metadata["model"] = str(metadata.get("model") or "claude-sonnet-4-6")
-            sessions.append(metadata)
+
+            normalized, _ = _normalize_loaded_payload(path.parent.name, raw)
+            sessions.append(normalized["metadata"])
         except Exception:
             continue
     return sorted(sessions, key=lambda x: str(x.get("updatedAt") or ""), reverse=True)
@@ -280,14 +474,57 @@ def tag_session(
 
 
 def delete_session(session_id: str, *, sessions_dir: str | Path | None = None) -> bool:
-    removed = False
-    path = _session_path(session_id, sessions_dir=sessions_dir)
-    if path.exists():
-        shutil.rmtree(path, ignore_errors=True)
-        removed = True
-    legacy = _legacy_session_file(session_id)
-    if legacy.exists():
+    try:
+        path = _session_path(session_id, sessions_dir=sessions_dir)
+        if path.exists():
+            shutil.rmtree(path, ignore_errors=True)
+        legacy = _legacy_session_file(session_id)
         legacy.unlink(missing_ok=True)
-        removed = True
-    return removed
+        return True
+    except Exception:
+        return False
+
+
+def saveSession(
+    sessionId: str,
+    messages: list[ConversationMessage | dict[str, Any]],
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    save_session(sessionId, messages, metadata)
+
+
+def loadSession(sessionId: str) -> dict[str, Any] | None:
+    return load_session(sessionId)
+
+
+def listSessions() -> list[dict[str, Any]]:
+    return list_sessions()
+
+
+def forkSession(sourceSessionId: str, newSessionId: str | None = None) -> str | None:
+    return fork_session(sourceSessionId, newSessionId)
+
+
+def getSessionMessages(sessionId: str) -> list[dict[str, Any]]:
+    return get_session_messages(sessionId)
+
+
+def appendToSession(sessionId: str, message: ConversationMessage | dict[str, Any]) -> None:
+    append_to_session(sessionId, message)
+
+
+def deleteSession(sessionId: str) -> bool:
+    return delete_session(sessionId)
+
+
+def getSessionInfo(sessionId: str, options: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    return get_session_info(sessionId, options)
+
+
+def renameSession(sessionId: str, title: str, options: dict[str, Any] | None = None) -> None:
+    rename_session(sessionId, title, options)
+
+
+def tagSession(sessionId: str, tag: str | None, options: dict[str, Any] | None = None) -> None:
+    tag_session(sessionId, tag, options)
 

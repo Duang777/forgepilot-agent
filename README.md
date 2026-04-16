@@ -36,7 +36,7 @@
 | 模块 | 直达 |
 |---|---|
 | 开始使用 | [快速开始](#quickstart) · [Quick Demo GIF](#quick-demo) |
-| 协议与接口 | [API 与协议兼容](#api-compatibility) · [配置说明](#configuration) |
+| 协议与接口 | [API 与协议兼容](#api-compatibility) · [Parity Report](#parity-report) · [配置说明](#configuration) |
 | 安全与规范 | [安全与生产收口](#security) · [Security Policy](#security-policy) |
 | 发布与版本 | [Versioning / Changelog](#versioning) · [路线图](#roadmap) |
 | 社区协作 | [贡献指南](#contributing) · [贡献者](#contributors) · [Star History](#star-history) |
@@ -135,14 +135,35 @@ uvicorn forgepilot_api.app:app --host 127.0.0.1 --port 2026 --reload
 
 ---
 
+<a id="parity-report"></a>
+## Parity Report
+
+- 最新自动报告：[`docs/parity_report.md`](./docs/parity_report.md)
+- 生成命令：
+
+```bash
+python scripts/generate_parity_report.py --repo-root . --output docs/parity_report.md
+```
+
+- 严格校验（缺任何基线项即失败）：
+
+```bash
+python scripts/generate_parity_report.py --repo-root . --output docs/parity_report.md --strict
+```
+
+---
+
 <a id="security"></a>
 ## 安全与生产收口
 
 ### 已实现能力
 
 - API Key 鉴权（支持 `subject:key`）
+- JWT 鉴权（`HS256/384/512`）与 API Key/JWT 混合模式
+- 路由级 RBAC（可配置策略 + subject scope）
 - 请求限流（memory / redis）
 - 变更型接口审计日志
+- OpenTelemetry 追踪（HTTP/SSE/tool 关键链路）
 - `/files` 端点治理：
   - `dev/prod` 模式
   - 高风险端点开关（open / import-skill）
@@ -177,10 +198,24 @@ FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.impor
 - `NODE_ENV`（`production` 下默认 CORS 自动收紧到 localhost / tauri 域）
 
 ### 鉴权与限流
-- `FORGEPILOT_AUTH_MODE` = `off | api_key`
+- `FORGEPILOT_AUTH_MODE` = `off | api_key | jwt | api_key_or_jwt`
 - `FORGEPILOT_API_KEYS`
 - `FORGEPILOT_API_KEY_HEADER`
+- `FORGEPILOT_JWT_HEADER`
+- `FORGEPILOT_JWT_BEARER_PREFIX`
+- `FORGEPILOT_JWT_SECRET`
+- `FORGEPILOT_JWT_ALGORITHMS`
+- `FORGEPILOT_JWT_ISSUER`
+- `FORGEPILOT_JWT_AUDIENCE`
+- `FORGEPILOT_JWT_SUBJECT_CLAIM`
+- `FORGEPILOT_JWT_SCOPE_CLAIM`
+- `FORGEPILOT_JWT_ROLES_CLAIM`
+- `FORGEPILOT_AUTH_SUBJECT_SCOPES`
 - `FORGEPILOT_AUTH_EXEMPT_PATHS`
+- `FORGEPILOT_RBAC_ENABLED`
+- `FORGEPILOT_RBAC_DEFAULT_ALLOW`
+- `FORGEPILOT_RBAC_POLICIES`
+- `FORGEPILOT_RBAC_SUBJECT_SCOPES`
 - `FORGEPILOT_RATE_LIMIT_ENABLED`
 - `FORGEPILOT_RATE_LIMIT_REQUESTS`
 - `FORGEPILOT_RATE_LIMIT_WINDOW_SECONDS`
@@ -196,6 +231,19 @@ FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.impor
 - `FORGEPILOT_RUNTIME_STATE_REDIS_URL`
 - `FORGEPILOT_RUNTIME_STATE_REDIS_KEY_PREFIX`
 - `FORGEPILOT_RUNTIME_STATE_FAIL_OPEN`
+- `FORGEPILOT_SESSION_STRICT_PARITY` = `true | false`
+  - 默认 `true`（`1`），对齐 upstream `open-agent-sdk-typescript/src/session.ts` 语义。
+  - 关闭后启用 Python 扩展行为（结构修复回写、缺失会话 append 自动创建等）。
+- Redis 后端下 permission 响应走 pub/sub 事件优先（轮询兜底）
+
+### 可观测性
+- `FORGEPILOT_OTEL_ENABLED`
+- `FORGEPILOT_OTEL_EXPORTER` = `console | otlp`
+- `FORGEPILOT_OTEL_OTLP_ENDPOINT`
+- Prometheus 指标新增：
+  - SSE 生命周期（started/completed/disconnected）
+  - tool use/error 按工具聚合
+  - sandbox fallback/provider 分布
 
 配置模板：
 - 开发环境：[`./.env.example`](./.env.example)

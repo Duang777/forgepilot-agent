@@ -15,7 +15,7 @@ class ProviderToolCall:
 
 @dataclass(slots=True)
 class ProviderResponse:
-    content: str = ""
+    content: str | list[dict[str, Any]] = ""
     tool_calls: list[ProviderToolCall] = field(default_factory=list)
     usage: dict[str, int] = field(default_factory=dict)
     stop_reason: str | None = None
@@ -33,6 +33,16 @@ class LLMProvider(Protocol):
         messages: list[ConversationMessage],
         tools: list[ToolDefinition],
         max_tokens: int | None = None,
+        thinking: dict[str, Any] | None = None,
     ) -> ProviderResponse:
         ...
+
+
+# Upstream-facing provider type aliases.
+CreateMessageParams = dict[str, Any]
+CreateMessageResponse = ProviderResponse
+NormalizedMessageParam = ConversationMessage
+NormalizedContentBlock = dict[str, Any]
+NormalizedTool = dict[str, Any]
+NormalizedResponseBlock = dict[str, Any]
 

@@ -140,3 +140,183 @@ def test_resolve_model_config_falls_back_to_codex_runtime(monkeypatch) -> None:
     assert resolved.model == "gpt-5.4"
     assert resolved.apiType == "openai-completions"
 
+
+def test_agent_service_camel_case_aliases_for_session_and_plan() -> None:
+    session = agent_service.createSession("execute")
+    assert session.id
+    assert agent_service.getSession(session.id) is not None
+    plan = {"id": "plan-camel-1", "goal": "x", "steps": []}
+    agent_service.savePlan(plan)
+    assert agent_service.getPlan("plan-camel-1") == plan
+    assert agent_service.deletePlan("plan-camel-1") is True
+    agent_service.stopAgent(session.id)
+    asyncio.run(agent_service.delete_session_async(session.id))
+
+
+def test_run_agent_camel_case_wrapper_delegates(monkeypatch) -> None:
+    async def _fake_run_agent(*args, **kwargs):
+        del args, kwargs
+        yield {"type": "text", "content": "ok"}
+        yield {"type": "done"}
+
+    monkeypatch.setattr(agent_service, "run_agent", _fake_run_agent)
+
+    async def _collect():
+        session = agent_service.createSession("execute")
+        out = []
+        async for event in agent_service.runAgent("hello", session):
+            out.append(event)
+        return out
+
+    events = asyncio.run(_collect())
+    assert events == [{"type": "text", "content": "ok"}, {"type": "done"}]
+
+
+def test_workspace_instruction_allows_creating_new_files() -> None:
+    text = agent_service._get_workspace_instruction("C:\\work", sandbox_enabled=False)
+    assert "new files can be created directly" in text
+    assert "execute directly with tools" in text
+    assert "Use Read before Write even for new files" not in text
+
+
+def test_task_request_detection_prefers_execution_for_file_work() -> None:
+    assert agent_service._looks_like_task_request("帮我生成一个 html 页面并写入 index.html")
+    assert agent_service._looks_like_task_request("Please create README.md and update setup.py")
+    assert not agent_service._looks_like_task_request("你好，你是谁？")
+
+
+def test_build_fallback_plan_from_prompt_is_structured() -> None:
+    plan = agent_service._build_fallback_plan_from_prompt("Create index.html with a clean landing page")
+    assert isinstance(plan.get("id"), str) and plan["id"]
+    assert "goal" in plan and plan["goal"]
+    assert isinstance(plan.get("steps"), list) and len(plan["steps"]) == 3
+    assert plan["steps"][0]["status"] == "pending"
+
+
+def test_run_planning_phase_converts_direct_answer_to_plan_for_task_prompt(monkeypatch) -> None:
+    async def _fake_resolve_model_config(_model_config):
+        return ModelConfig(
+            apiKey="test-key",
+            baseUrl="https://example.invalid",
+            model="gpt-5.4",
+            apiType="openai-completions",
+        )
+
+    class _FakeAgent:
+        async def query(self, _prompt: str):
+            yield {"type": "system", "subtype": "init", "session_id": "session-1"}
+            yield {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": '{"type":"direct_answer","answer":"Please confirm first."}',
+                        }
+                    ]
+                },
+            }
+
+        async def close(self):
+            return None
+
+    monkeypatch.setattr(agent_service, "_resolve_model_config", _fake_resolve_model_config)
+    monkeypatch.setattr(agent_service, "create_agent", lambda _options: _FakeAgent())
+
+    async def _collect_events():
+        session = agent_service.create_session("plan")
+        out = []
+        async for event in agent_service.run_planning_phase(
+            "请创建一个 index.html 并保存到工作目录",
+            session,
+        ):
+            out.append(event)
+        return out
+
+    events = asyncio.run(_collect_events())
+    assert any(event.get("type") == "plan" for event in events)
+    assert not any(event.get("type") == "direct_answer" for event in events if "Please confirm first." in str(event))
+
+
+def test_format_plan_for_execution_enforces_tool_execution() -> None:
+    plan = {
+        "goal": "Create index.html",
+        "steps": [{"id": "1", "description": "Create file"}],
+        "notes": "none",
+    }
+    text = agent_service._format_plan_for_execution(
+        plan,
+        "C:\\work",
+        sandbox_enabled=False,
+        language="en-US",
+        original_prompt="Create index.html",
+    )
+    assert "Do not ask for additional confirmation" in text
+    assert "Perform real tool calls" in text
+    assert "include absolute paths" in text
+
+
+def test_should_block_unverified_file_success_when_no_tool_calls() -> None:
+    prompt = "帮我生成一个 html 页面并保存为 index.html"
+    assert agent_service._should_block_unverified_file_success(
+        prompt,
+        set(),
+        "已为你生成在以下路径：C:\\Users\\x\\index.html",
+    )
+
+
+def test_should_not_block_file_success_when_write_tool_present() -> None:
+    prompt = "Create index.html file"
+    assert not agent_service._should_block_unverified_file_success(
+        prompt,
+        {"Write"},
+        "Created file at C:\\work\\index.html",
+    )
+
+
+def test_run_agent_blocks_fake_file_success(monkeypatch) -> None:
+    async def _fake_resolve_model_config(_model_config):
+        return ModelConfig(
+            apiKey="test-key",
+            baseUrl="https://example.invalid",
+            model="gpt-5.4",
+            apiType="openai-completions",
+        )
+
+    class _FakeAgent:
+        async def query(self, _prompt: str):
+            yield {"type": "system", "subtype": "init", "session_id": "session-1"}
+            yield {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "已为你生成在以下路径：C:\\\\Users\\\\13087\\\\.forgepilot\\\\sessions\\\\a\\\\index.html",
+                        }
+                    ]
+                },
+            }
+            yield {"type": "result", "subtype": "success", "total_cost_usd": 0.0, "duration_ms": 10}
+
+        async def close(self):
+            return None
+
+    monkeypatch.setattr(agent_service, "_resolve_model_config", _fake_resolve_model_config)
+    monkeypatch.setattr(agent_service, "create_agent", lambda _options: _FakeAgent())
+
+    async def _collect_events():
+        session = agent_service.create_session("execute")
+        out = []
+        async for event in agent_service.run_agent(
+            "帮我生成一个html页面并告诉我路径",
+            session,
+            work_dir="C:\\work",
+        ):
+            out.append(event)
+        return out
+
+    events = asyncio.run(_collect_events())
+    assert any(event.get("type") == "error" and event.get("message") == "__UNVERIFIED_FILE_OPERATION__" for event in events)
+    assert any(event.get("type") == "result" and event.get("subtype") == "error" for event in events)
+

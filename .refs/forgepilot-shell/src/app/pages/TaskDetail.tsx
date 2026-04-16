@@ -1667,6 +1667,15 @@ function MessageItem({
   return null;
 }
 
+function decodeErrorDetail(raw: string): string {
+  if (!raw) return '';
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 // Error Message Component with API key detection
 function ErrorMessage({ message }: { message: string }) {
   const { t } = useLanguage();
@@ -1783,10 +1792,20 @@ function ErrorMessage({ message }: { message: string }) {
     const parts = message.split('|');
     const baseUrl = parts[1] || '';
     const logPath = parts[2] || '~/.forgepilot/logs/forgepilot.log';
+    const detail = decodeErrorDetail(parts.slice(3).join('|'));
     const errorMessage = (
       t.common.errors.customApiError ||
       'Custom API ({baseUrl}) may not be compatible with Claude Code SDK. Please check the API configuration or try a different provider. Log file: {logPath}'
     ).replace('{baseUrl}', baseUrl).replace('{logPath}', logPath);
+    const normalizedErrorMessage = errorMessage
+      .replace(
+        'may not be compatible with Claude Code SDK. Please check the API configuration or try a different provider.',
+        'request failed. Please check API configuration, network, or upstream service status.'
+      )
+      .replace(
+        '可能与 Claude Code SDK 不兼容。请检查 API 配置或尝试其他服务商。',
+        '请求失败，请检查 API 配置、网络或上游服务状态。'
+      );
 
     return (
       <div className="flex items-start gap-3 py-2">
@@ -1799,7 +1818,14 @@ function ErrorMessage({ message }: { message: string }) {
             <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM7 4.5a1 1 0 112 0v3a1 1 0 11-2 0v-3zm1 7a1 1 0 100-2 1 1 0 000 2z" />
           </svg>
         </div>
-        <p className="text-muted-foreground text-sm">{errorMessage}</p>
+        <div className="flex flex-col gap-1">
+          <p className="text-muted-foreground text-sm">{normalizedErrorMessage}</p>
+          {detail && (
+            <p className="text-muted-foreground font-mono text-xs">
+              Detail: {detail}
+            </p>
+          )}
+        </div>
       </div>
     );
   }
@@ -1807,7 +1833,9 @@ function ErrorMessage({ message }: { message: string }) {
   // Check if this is an internal error (format: __INTERNAL_ERROR__|logPath)
   const isInternalError = message.startsWith('__INTERNAL_ERROR__|');
   if (isInternalError) {
-    const logPath = message.split('|')[1] || '~/.forgepilot/logs/forgepilot.log';
+    const parts = message.split('|');
+    const logPath = parts[1] || '~/.forgepilot/logs/forgepilot.log';
+    const detail = decodeErrorDetail(parts.slice(2).join('|'));
     const errorMessage = (
       t.common.errors.internalError ||
       'Internal server error. Please check log file: {logPath}'
@@ -1824,7 +1852,14 @@ function ErrorMessage({ message }: { message: string }) {
             <path d="M8 1a7 7 0 100 14A7 7 0 008 1zM7 4.5a1 1 0 112 0v3a1 1 0 11-2 0v-3zm1 7a1 1 0 100-2 1 1 0 000 2z" />
           </svg>
         </div>
-        <p className="text-muted-foreground text-sm">{errorMessage}</p>
+        <div className="flex flex-col gap-1">
+          <p className="text-muted-foreground text-sm">{errorMessage}</p>
+          {detail && (
+            <p className="text-muted-foreground font-mono text-xs">
+              Detail: {detail}
+            </p>
+          )}
+        </div>
       </div>
     );
   }

@@ -3,7 +3,8 @@ param(
   [int]$ApiPort = 2026,
   [string]$FrontendShellDir = "",
   [bool]$RunSmokeCheck = $true,
-  [bool]$RequireModel = $true
+  [bool]$RequireModel = $true,
+  [bool]$StopApiOnExit = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -71,8 +72,10 @@ try {
     Pop-Location
   }
 } finally {
-  if ($apiProc -and -not $apiProc.HasExited) {
+  if ($StopApiOnExit -and $apiProc -and -not $apiProc.HasExited) {
     Write-Host "[ForgePilot] Stopping Python API (PID $($apiProc.Id)) ..."
     Stop-Process -Id $apiProc.Id -Force -ErrorAction SilentlyContinue
+  } elseif (-not $StopApiOnExit -and $apiProc -and -not $apiProc.HasExited) {
+    Write-Host "[ForgePilot] Keeping Python API running on $apiUrl (PID $($apiProc.Id))."
   }
 }

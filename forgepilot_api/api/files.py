@@ -139,6 +139,14 @@ def _authorize_files_scope(request: Request, required_scope: str) -> JSONRespons
             status_code=403,
         )
 
+    auth_scopes = {
+        str(scope).strip().lower()
+        for scope in getattr(request.state, "auth_scopes", [])
+        if str(scope).strip()
+    }
+    if "*" in auth_scopes or required_scope in auth_scopes:
+        return None
+
     subject = _resolve_subject(request)
     acl_tokens = settings.files_acl_subjects.get(subject, settings.files_acl_default)
     allowed_scopes = _expand_acl_tokens(acl_tokens)
@@ -214,8 +222,15 @@ def _run_cmd(command: list[str] | str, *, shell: bool = False) -> None:
 
 def _open_with_system_default(path: Path, *, text_mode: bool = False) -> None:
     if os.name == "nt":
-        escaped_path = str(path).replace('"', '""')
-        _run_cmd(f'cmd /c start "" "{escaped_path}"', shell=True)
+        target = str(path)
+        # Prefer os.startfile on Windows: it avoids shell-escaping edge cases
+        # (spaces, parentheses, unicode) that can make `cmd /c start` fail.
+        try:
+            os.startfile(target)  # type: ignore[attr-defined]
+            return
+        except Exception:
+            escaped_path = target.replace('"', '""')
+            _run_cmd(f'cmd /c start "" "{escaped_path}"', shell=True)
         return
     if platform.system() == "Darwin":
         if text_mode:

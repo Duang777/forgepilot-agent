@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol
@@ -51,6 +52,14 @@ class RuntimeStateBackend(Protocol):
     async def set_runtime_permission_status(self, session_id: str, permission_id: str, status: str) -> bool: ...
     async def delete_runtime_permission(self, session_id: str, permission_id: str) -> bool: ...
     async def delete_expired_runtime_permissions(self) -> int: ...
+    async def wait_permission_event(
+        self,
+        *,
+        session_id: str,
+        permission_id: str,
+        timeout_seconds: float,
+    ) -> str | None: ...
+    async def publish_permission_event(self, *, session_id: str, permission_id: str, status: str) -> None: ...
 
 
 class SqliteRuntimeStateBackend:
@@ -108,6 +117,20 @@ class SqliteRuntimeStateBackend:
     async def delete_expired_runtime_permissions(self) -> int:
         return await sqlite_repo.delete_expired_runtime_permissions()
 
+    async def wait_permission_event(
+        self,
+        *,
+        session_id: str,
+        permission_id: str,
+        timeout_seconds: float,
+    ) -> str | None:
+        del session_id, permission_id, timeout_seconds
+        return None
+
+    async def publish_permission_event(self, *, session_id: str, permission_id: str, status: str) -> None:
+        del session_id, permission_id, status
+        return None
+
 
 class RedisRuntimeStateBackend:
     def __init__(self, client: Any, key_prefix: str) -> None:
@@ -136,6 +159,9 @@ class RedisRuntimeStateBackend:
 
     def _permission_key(self, session_id: str, permission_id: str) -> str:
         return f"{self._prefix}:permission:{session_id}:{permission_id}"
+
+    def _permission_channel(self, session_id: str, permission_id: str) -> str:
+        return f"{self._prefix}:events:permission:{session_id}:{permission_id}"
 
     async def _set_json(self, key: str, payload: dict[str, Any], ttl_seconds: int | None = None) -> None:
         text = json.dumps(payload, ensure_ascii=False)
@@ -279,6 +305,53 @@ class RedisRuntimeStateBackend:
     async def delete_expired_runtime_permissions(self) -> int:
         # Redis expiry handles this via key TTL.
         return 0
+
+    async def wait_permission_event(
+        self,
+        *,
+        session_id: str,
+        permission_id: str,
+        timeout_seconds: float,
+    ) -> str | None:
+        timeout = max(0.05, float(timeout_seconds))
+        channel = self._permission_channel(session_id, permission_id)
+        pubsub = self._client.pubsub(ignore_subscribe_messages=True)
+        try:
+            await pubsub.subscribe(channel)
+            deadline = asyncio.get_running_loop().time() + timeout
+            while True:
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    return None
+                wait_slice = min(1.0, remaining)
+                message = await pubsub.get_message(timeout=wait_slice)
+                if not message:
+                    continue
+                data = message.get("data")
+                if isinstance(data, bytes):
+                    text = data.decode("utf-8", errors="ignore").strip().lower()
+                else:
+                    text = str(data or "").strip().lower()
+                if text:
+                    return text
+            return None
+        finally:
+            with contextlib.suppress(Exception):
+                await pubsub.unsubscribe(channel)
+            with contextlib.suppress(Exception):
+                close = getattr(pubsub, "aclose", None)
+                if callable(close):
+                    await close()
+                else:
+                    legacy = getattr(pubsub, "close", None)
+                    if callable(legacy):
+                        maybe = legacy()
+                        if asyncio.iscoroutine(maybe):
+                            await maybe
+
+    async def publish_permission_event(self, *, session_id: str, permission_id: str, status: str) -> None:
+        channel = self._permission_channel(session_id, permission_id)
+        await self._client.publish(channel, status)
 
 
 _BACKEND: RuntimeStateBackend | None = None
@@ -434,3 +507,31 @@ async def delete_runtime_permission(session_id: str, permission_id: str) -> bool
 async def delete_expired_runtime_permissions() -> int:
     backend = await _get_backend()
     return await backend.delete_expired_runtime_permissions()
+
+
+async def wait_runtime_permission_event(
+    *,
+    session_id: str,
+    permission_id: str,
+    timeout_seconds: float,
+) -> str | None:
+    backend = await _get_backend()
+    return await backend.wait_permission_event(
+        session_id=session_id,
+        permission_id=permission_id,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+async def publish_runtime_permission_event(
+    *,
+    session_id: str,
+    permission_id: str,
+    status: str,
+) -> None:
+    backend = await _get_backend()
+    await backend.publish_permission_event(
+        session_id=session_id,
+        permission_id=permission_id,
+        status=status,
+    )

@@ -27,6 +27,9 @@ jobs:
       - name: Ruff Lint
         run: python -m ruff check .
 
+      - name: Baseline Parity Check
+        run: python scripts/generate_parity_report.py --repo-root . --output docs/parity_report.md --strict
+
   python-tests:
     name: Python Tests
     runs-on: ubuntu-latest

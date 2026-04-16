@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import re
+from dataclasses import dataclass
+from typing import Any
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from forgepilot_api.core.jwt_auth import JwtValidationError, JwtValidationOptions, validate_hs_jwt
 from forgepilot_api.core.logging import get_logger
 from forgepilot_api.core.rate_limit import RateLimiterUnavailable, build_rate_limiter
 from forgepilot_api.core.security import ApiKeyRecord, verify_api_key
@@ -29,17 +34,50 @@ def _is_exempt_path(path: str, exempt_paths: list[str]) -> bool:
     return False
 
 
+def _parse_scope_value(raw: Any) -> set[str]:
+    if raw is None:
+        return set()
+    if isinstance(raw, str):
+        values = [item.strip().lower() for item in re.split(r"[\s,\|]", raw) if item.strip()]
+        return set(values)
+    if isinstance(raw, list):
+        out: set[str] = set()
+        for item in raw:
+            if isinstance(item, str):
+                token = item.strip().lower()
+                if token:
+                    out.add(token)
+        return out
+    return set()
+
+
+def _subject_scopes(subject: str, subject_scope_map: dict[str, tuple[str, ...]]) -> set[str]:
+    key = subject.strip().lower()
+    if not key:
+        return set()
+    values = subject_scope_map.get(key, ())
+    return {item.strip().lower() for item in values if item.strip()}
+
+
+def _set_auth_state(request: Request, *, subject: str, scheme: str, scopes: set[str]) -> None:
+    request.state.auth_subject = subject
+    request.state.auth_scheme = scheme
+    request.state.auth_scopes = sorted(scopes)
+
+
 class ApiKeyAuthMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app,
         header_name: str,
         records: list[ApiKeyRecord],
+        subject_scope_map: dict[str, tuple[str, ...]] | None = None,
         exempt_paths: list[str] | None = None,
     ):
         super().__init__(app)
         self.header_name = header_name.lower()
         self.records = records
+        self.subject_scope_map = subject_scope_map or {}
         self.exempt_paths = exempt_paths or []
 
     async def dispatch(self, request: Request, call_next):
@@ -51,8 +89,140 @@ class ApiKeyAuthMiddleware(BaseHTTPMiddleware):
         if record is None:
             return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
-        request.state.auth_subject = record.subject
-        request.state.auth_scheme = "api_key"
+        scopes = _subject_scopes(record.subject, self.subject_scope_map)
+        _set_auth_state(request, subject=record.subject, scheme="api_key", scopes=scopes)
+        return await call_next(request)
+
+
+class JwtAuthMiddleware(BaseHTTPMiddleware):
+    def __init__(
+        self,
+        app,
+        *,
+        header_name: str,
+        bearer_prefix: str,
+        options: JwtValidationOptions,
+        subject_claim: str,
+        scope_claim: str,
+        roles_claim: str,
+        subject_scope_map: dict[str, tuple[str, ...]] | None = None,
+        exempt_paths: list[str] | None = None,
+    ):
+        super().__init__(app)
+        self.header_name = header_name.lower()
+        self.bearer_prefix = bearer_prefix.strip().lower()
+        self.options = options
+        self.subject_claim = subject_claim
+        self.scope_claim = scope_claim
+        self.roles_claim = roles_claim
+        self.subject_scope_map = subject_scope_map or {}
+        self.exempt_paths = exempt_paths or []
+
+    def _extract_token(self, request: Request) -> str | None:
+        value = str(request.headers.get(self.header_name, "")).strip()
+        if not value:
+            return None
+        prefix = self.bearer_prefix
+        if prefix and " " in value:
+            lead, rest = value.split(" ", 1)
+            if lead.strip().lower() != prefix:
+                return None
+            token = rest.strip()
+            return token or None
+        return value
+
+    async def dispatch(self, request: Request, call_next):
+        if _is_exempt_path(request.url.path, self.exempt_paths):
+            return await call_next(request)
+
+        token = self._extract_token(request)
+        if token is None:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        try:
+            payload = validate_hs_jwt(token, self.options)
+        except JwtValidationError:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+        subject = str(payload.get(self.subject_claim) or "").strip()
+        if not subject:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+        scopes = set()
+        scopes.update(_parse_scope_value(payload.get(self.scope_claim)))
+        scopes.update(_parse_scope_value(payload.get(self.roles_claim)))
+        scopes.update(_subject_scopes(subject, self.subject_scope_map))
+
+        _set_auth_state(request, subject=subject, scheme="jwt", scopes=scopes)
+        return await call_next(request)
+
+
+class CombinedAuthMiddleware(BaseHTTPMiddleware):
+    def __init__(
+        self,
+        app,
+        *,
+        api_key_header: str,
+        api_key_records: list[ApiKeyRecord],
+        jwt_header: str,
+        jwt_bearer_prefix: str,
+        jwt_options: JwtValidationOptions,
+        jwt_subject_claim: str,
+        jwt_scope_claim: str,
+        jwt_roles_claim: str,
+        subject_scope_map: dict[str, tuple[str, ...]] | None = None,
+        exempt_paths: list[str] | None = None,
+    ):
+        super().__init__(app)
+        self.api_key_header = api_key_header.lower()
+        self.api_key_records = api_key_records
+        self.jwt_header = jwt_header.lower()
+        self.jwt_bearer_prefix = jwt_bearer_prefix.strip().lower()
+        self.jwt_options = jwt_options
+        self.jwt_subject_claim = jwt_subject_claim
+        self.jwt_scope_claim = jwt_scope_claim
+        self.jwt_roles_claim = jwt_roles_claim
+        self.subject_scope_map = subject_scope_map or {}
+        self.exempt_paths = exempt_paths or []
+
+    def _extract_jwt_token(self, request: Request) -> str | None:
+        value = str(request.headers.get(self.jwt_header, "")).strip()
+        if not value:
+            return None
+        if " " in value:
+            prefix, token = value.split(" ", 1)
+            if prefix.strip().lower() != self.jwt_bearer_prefix:
+                return None
+            token = token.strip()
+            return token or None
+        return value
+
+    async def dispatch(self, request: Request, call_next):
+        if _is_exempt_path(request.url.path, self.exempt_paths):
+            return await call_next(request)
+
+        candidate = request.headers.get(self.api_key_header, "")
+        record = verify_api_key(candidate, self.api_key_records)
+        if record is not None:
+            scopes = _subject_scopes(record.subject, self.subject_scope_map)
+            _set_auth_state(request, subject=record.subject, scheme="api_key", scopes=scopes)
+            return await call_next(request)
+
+        token = self._extract_jwt_token(request)
+        if token is None:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        try:
+            payload = validate_hs_jwt(token, self.jwt_options)
+        except JwtValidationError:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+        subject = str(payload.get(self.jwt_subject_claim) or "").strip()
+        if not subject:
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        scopes = set()
+        scopes.update(_parse_scope_value(payload.get(self.jwt_scope_claim)))
+        scopes.update(_parse_scope_value(payload.get(self.jwt_roles_claim)))
+        scopes.update(_subject_scopes(subject, self.subject_scope_map))
+        _set_auth_state(request, subject=subject, scheme="jwt", scopes=scopes)
         return await call_next(request)
 
 
@@ -119,6 +289,67 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             )
 
         return await call_next(request)
+
+
+@dataclass(frozen=True, slots=True)
+class RbacRule:
+    method: str
+    path: str
+    scopes: tuple[str, ...]
+
+
+class RbacMiddleware(BaseHTTPMiddleware):
+    def __init__(
+        self,
+        app,
+        *,
+        default_allow: bool,
+        policies: tuple[tuple[str, str, tuple[str, ...]], ...],
+        subject_scope_map: dict[str, tuple[str, ...]] | None = None,
+        exempt_paths: list[str] | None = None,
+    ):
+        super().__init__(app)
+        self.default_allow = default_allow
+        self.rules = tuple(
+            RbacRule(method=method.upper(), path=path, scopes=tuple(scope.lower() for scope in scopes))
+            for method, path, scopes in policies
+        )
+        self.subject_scope_map = subject_scope_map or {}
+        self.exempt_paths = exempt_paths or []
+
+    def _resolve_required_scopes(self, request: Request) -> tuple[str, ...] | None:
+        method = request.method.upper()
+        path = request.url.path
+        for rule in self.rules:
+            if rule.method != "*" and rule.method != method:
+                continue
+            if path == rule.path or path.startswith(f"{rule.path}/"):
+                return rule.scopes
+        return None
+
+    def _effective_scopes(self, request: Request) -> set[str]:
+        explicit = getattr(request.state, "auth_scopes", [])
+        scopes = {str(item).strip().lower() for item in explicit if str(item).strip()}
+        subject = str(getattr(request.state, "auth_subject", "anonymous") or "anonymous")
+        scopes.update(_subject_scopes(subject, self.subject_scope_map))
+        return scopes
+
+    async def dispatch(self, request: Request, call_next):
+        if _is_exempt_path(request.url.path, self.exempt_paths):
+            return await call_next(request)
+        required = self._resolve_required_scopes(request)
+        if required is None:
+            if self.default_allow:
+                return await call_next(request)
+            return JSONResponse({"error": "Forbidden"}, status_code=403)
+
+        scopes = self._effective_scopes(request)
+        if "*" in scopes:
+            return await call_next(request)
+        for scope in required:
+            if scope in scopes:
+                return await call_next(request)
+        return JSONResponse({"error": "Forbidden", "requiredScopes": list(required)}, status_code=403)
 
 
 class AuditMiddleware(BaseHTTPMiddleware):
