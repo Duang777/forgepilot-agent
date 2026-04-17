@@ -1,220 +1,309 @@
-# Design System Inspired by Figma
+# Design System Inspired by Cursor
 
 ## 1. Visual Theme & Atmosphere
 
-Figma's interface is the design tool that designed itself — a masterclass in typographic sophistication where a custom variable font (figmaSans) modulates between razor-thin (weight 320) and bold (weight 700) with stops at unusual intermediates (330, 340, 450, 480, 540) that most type systems never explore. This granular weight control gives every text element a precisely calibrated visual weight, creating hierarchy through micro-differences rather than the blunt instrument of "regular vs bold."
+Cursor's website is a study in warm minimalism meets code-editor elegance. The entire experience is built on a warm off-white canvas (`#f2f1ed`) with dark warm-brown text (`#26251e`) -- not pure black, not neutral gray, but a deeply warm near-black with a yellowish undertone that evokes old paper, ink, and craft. This warmth permeates every surface: backgrounds lean toward cream (`#e6e5e0`, `#ebeae5`), borders dissolve into transparent warm overlays using `oklab` color space, and even the error state (`#cf2d56`) carries warmth rather than clinical red. The result feels more like a premium print publication than a tech website.
 
-The page presents a fascinating duality: the interface chrome is strictly black-and-white (literally only `#000000` and `#ffffff` detected as colors), while the hero section and product showcases explode with vibrant multi-color gradients — electric greens, bright yellows, deep purples, hot pinks. This separation means the design system itself is colorless, treating the product's colorful output as the hero content. Figma's marketing page is essentially a white gallery wall displaying colorful art.
+The custom CursorGothic font is the typographic signature -- a gothic sans-serif with aggressive negative letter-spacing at display sizes (-2.16px at 72px) that creates a compressed, engineered feel. As a secondary voice, the jjannon serif font (with OpenType `"cswh"` contextual swash alternates) provides literary counterpoint for body copy and editorial passages. The monospace voice comes from berkeleyMono, a refined coding font that connects the marketing site to Cursor's core identity as a code editor. This three-font system (gothic display, serif body, mono code) gives Cursor one of the most typographically rich palettes in developer tooling.
 
-What makes Figma distinctive beyond the variable font is its circle-and-pill geometry. Buttons use 50px radius (pill) or 50% (perfect circle for icon buttons), creating an organic, tool-palette-like feel. The dashed-outline focus indicator (`dashed 2px`) is a deliberate design choice that echoes selection handles in the Figma editor itself — the website's UI language references the product's UI language.
+The border system is particularly distinctive -- Cursor uses `oklab()` color space for border colors, applying warm brown at various alpha levels (0.1, 0.2, 0.55) to create borders that feel organic rather than mechanical. The signature border color `oklab(0.263084 -0.00230259 0.0124794 / 0.1)` is not a simple rgba value but a perceptually uniform color that maintains visual consistency across different backgrounds.
 
 **Key Characteristics:**
-- Custom variable font (figmaSans) with unusual weight stops: 320, 330, 340, 450, 480, 540, 700
-- Strictly black-and-white interface chrome — color exists only in product content
-- figmaMono for uppercase technical labels with wide letter-spacing
-- Pill (50px) and circular (50%) button geometry
-- Dashed focus outlines echoing Figma's editor selection handles
-- Vibrant multi-color hero gradients (green, yellow, purple, pink)
-- OpenType `"kern"` feature enabled globally
-- Negative letter-spacing throughout — even body text at -0.14px to -0.26px
+- CursorGothic with aggressive negative letter-spacing (-2.16px at 72px, -0.72px at 36px) for compressed display headings
+- jjannon serif for body text with OpenType `"cswh"` (contextual swash alternates)
+- berkeleyMono for code and technical labels
+- Warm off-white background (`#f2f1ed`) instead of pure white -- the entire system is warm-shifted
+- Primary text color `#26251e` (warm near-black with yellow undertone)
+- Accent orange `#f54e00` for brand highlight and links
+- oklab-space borders at various alpha levels for perceptually uniform edge treatment
+- Pill-shaped elements with extreme radius (33.5M px, effectively full-pill)
+- 8px base spacing system with fine-grained sub-8px increments (1.5px, 2px, 2.5px, 3px, 4px, 5px, 6px)
 
 ## 2. Color Palette & Roles
 
 ### Primary
-- **Pure Black** (`#000000`): All text, all solid buttons, all borders. The sole "color" of the interface.
-- **Pure White** (`#ffffff`): All backgrounds, white buttons, text on dark surfaces. The other half of the binary.
+- **Cursor Dark** (`#26251e`): Primary text, headings, dark UI surfaces. A warm near-black with distinct yellow-brown undertone -- the defining color of the system.
+- **Cursor Cream** (`#f2f1ed`): Page background, primary surface. Not white but a warm cream that sets the entire warm tone.
+- **Cursor Light** (`#e6e5e0`): Secondary surface, button backgrounds, card fills. A slightly warmer, slightly darker cream.
+- **Pure White** (`#ffffff`): Used sparingly for maximum contrast elements and specific surface highlights.
+- **True Black** (`#000000`): Minimal use, specific code/console contexts.
 
-*Note: Figma's marketing site uses ONLY these two colors for its interface layer. All vibrant colors appear exclusively in product screenshots, hero gradients, and embedded content.*
+### Accent
+- **Cursor Orange** (`#f54e00`): Brand accent, `--color-accent`. A vibrant red-orange used for primary CTAs, active links, and brand moments. Warm and urgent.
+- **Gold** (`#c08532`): Secondary accent, warm gold for premium or highlighted contexts.
 
-### Surface & Background
-- **Pure White** (`#ffffff`): Primary page background and card surfaces.
-- **Glass Black** (`rgba(0, 0, 0, 0.08)`): Subtle dark overlay for secondary circular buttons and glass effects.
-- **Glass White** (`rgba(255, 255, 255, 0.16)`): Frosted glass overlay for buttons on dark/colored surfaces.
+### Semantic
+- **Error** (`#cf2d56`): `--color-error`. A warm crimson-rose rather than cold red.
+- **Success** (`#1f8a65`): `--color-success`. A muted teal-green, warm-shifted.
 
-### Gradient System
-- **Hero Gradient**: A vibrant multi-stop gradient using electric green, bright yellow, deep purple, and hot pink. This gradient is the visual signature of the hero section — it represents the creative possibilities of the tool.
-- **Product Section Gradients**: Individual product areas (Design, Dev Mode, Prototyping) may use distinct color themes in their showcases.
+### Timeline / Feature Colors
+- **Thinking** (`#dfa88f`): Warm peach for "thinking" state in AI timeline.
+- **Grep** (`#9fc9a2`): Soft sage green for search/grep operations.
+- **Read** (`#9fbbe0`): Soft blue for file reading operations.
+- **Edit** (`#c0a8dd`): Soft lavender for editing operations.
+
+### Surface Scale
+- **Surface 100** (`#f7f7f4`): Lightest button/card surface, barely tinted.
+- **Surface 200** (`#f2f1ed`): Primary page background.
+- **Surface 300** (`#ebeae5`): Button default background, subtle emphasis.
+- **Surface 400** (`#e6e5e0`): Card backgrounds, secondary surfaces.
+- **Surface 500** (`#e1e0db`): Tertiary button background, deeper emphasis.
+
+### Border Colors
+- **Border Primary** (`oklab(0.263084 -0.00230259 0.0124794 / 0.1)`): Standard border, 10% warm brown in oklab space.
+- **Border Medium** (`oklab(0.263084 -0.00230259 0.0124794 / 0.2)`): Emphasized border, 20% warm brown.
+- **Border Strong** (`rgba(38, 37, 30, 0.55)`): Strong borders, table rules.
+- **Border Solid** (`#26251e`): Full-opacity dark border for maximum contrast.
+- **Border Light** (`#f2f1ed`): Light border matching page background.
+
+### Shadows & Depth
+- **Card Shadow** (`rgba(0,0,0,0.14) 0px 28px 70px, rgba(0,0,0,0.1) 0px 14px 32px, oklab(0.263084 -0.00230259 0.0124794 / 0.1) 0px 0px 0px 1px`): Heavy elevated card with warm oklab border ring.
+- **Ambient Shadow** (`rgba(0,0,0,0.02) 0px 0px 16px, rgba(0,0,0,0.008) 0px 0px 8px`): Subtle ambient glow for floating elements.
 
 ## 3. Typography Rules
 
 ### Font Family
-- **Primary**: `figmaSans`, with fallbacks: `figmaSans Fallback, SF Pro Display, system-ui, helvetica`
-- **Monospace / Labels**: `figmaMono`, with fallbacks: `figmaMono Fallback, SF Mono, menlo`
+- **Display/Headlines**: `CursorGothic`, with fallbacks: `CursorGothic Fallback, system-ui, Helvetica Neue, Helvetica, Arial`
+- **Body/Editorial**: `jjannon`, with fallbacks: `Iowan Old Style, Palatino Linotype, URW Palladio L, P052, ui-serif, Georgia, Cambria, Times New Roman, Times`
+- **Code/Technical**: `berkeleyMono`, with fallbacks: `ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New`
+- **UI/System**: `system-ui`, with fallbacks: `-apple-system, Segoe UI, Helvetica Neue, Arial`
+- **Icons**: `CursorIcons16` (icon font at 14px and 12px)
+- **OpenType Features**: `"cswh"` on jjannon body text, `"ss09"` on CursorGothic buttons/captions
 
 ### Hierarchy
 
 | Role | Font | Size | Weight | Line Height | Letter Spacing | Notes |
 |------|------|------|--------|-------------|----------------|-------|
-| Display / Hero | figmaSans | 86px (5.38rem) | 400 | 1.00 (tight) | -1.72px | Maximum impact, extreme tracking |
-| Section Heading | figmaSans | 64px (4rem) | 400 | 1.10 (tight) | -0.96px | Feature section titles |
-| Sub-heading | figmaSans | 26px (1.63rem) | 540 | 1.35 | -0.26px | Emphasized section text |
-| Sub-heading Light | figmaSans | 26px (1.63rem) | 340 | 1.35 | -0.26px | Light-weight section text |
-| Feature Title | figmaSans | 24px (1.5rem) | 700 | 1.45 | normal | Bold card headings |
-| Body Large | figmaSans | 20px (1.25rem) | 330–450 | 1.30–1.40 | -0.1px to -0.14px | Descriptions, intros |
-| Body / Button | figmaSans | 16px (1rem) | 330–400 | 1.40–1.45 | -0.14px to normal | Standard body, nav, buttons |
-| Body Light | figmaSans | 18px (1.13rem) | 320 | 1.45 | -0.26px to normal | Light-weight body text |
-| Mono Label | figmaMono | 18px (1.13rem) | 400 | 1.30 (tight) | 0.54px | Uppercase section labels |
-| Mono Small | figmaMono | 12px (0.75rem) | 400 | 1.00 (tight) | 0.6px | Uppercase tiny tags |
+| Display Hero | CursorGothic | 72px (4.50rem) | 400 | 1.10 (tight) | -2.16px | Maximum compression, hero statements |
+| Section Heading | CursorGothic | 36px (2.25rem) | 400 | 1.20 (tight) | -0.72px | Feature sections, CTA headlines |
+| Sub-heading | CursorGothic | 26px (1.63rem) | 400 | 1.25 (tight) | -0.325px | Card headings, sub-sections |
+| Title Small | CursorGothic | 22px (1.38rem) | 400 | 1.30 (tight) | -0.11px | Smaller titles, list headings |
+| Body Serif | jjannon | 19.2px (1.20rem) | 500 | 1.50 | normal | Editorial body with `"cswh"` |
+| Body Serif SM | jjannon | 17.28px (1.08rem) | 400 | 1.35 | normal | Standard body text, descriptions |
+| Body Sans | CursorGothic | 16px (1.00rem) | 400 | 1.50 | normal/0.08px | UI body text |
+| Button Label | CursorGothic | 14px (0.88rem) | 400 | 1.00 (tight) | normal | Primary button text |
+| Button Caption | CursorGothic | 14px (0.88rem) | 400 | 1.50 | 0.14px | Secondary button with `"ss09"` |
+| Caption | CursorGothic | 11px (0.69rem) | 400-500 | 1.50 | normal | Small captions, metadata |
+| System Heading | system-ui | 20px (1.25rem) | 700 | 1.55 | normal | System UI headings |
+| System Caption | system-ui | 13px (0.81rem) | 500-600 | 1.33 | normal | System UI labels |
+| System Micro | system-ui | 11px (0.69rem) | 500 | 1.27 (tight) | 0.048px | Uppercase micro labels |
+| Mono Body | berkeleyMono | 12px (0.75rem) | 400 | 1.67 (relaxed) | normal | Code blocks |
+| Mono Small | berkeleyMono | 11px (0.69rem) | 400 | 1.33 | -0.275px | Inline code, terminal |
+| Lato Heading | Lato | 16px (1.00rem) | 600 | 1.33 | normal | Lato section headings |
+| Lato Caption | Lato | 14px (0.88rem) | 400-600 | 1.33 | normal | Lato captions |
+| Lato Micro | Lato | 12px (0.75rem) | 400-600 | 1.27 (tight) | 0.053px | Lato small labels |
 
 ### Principles
-- **Variable font precision**: figmaSans uses weights that most systems never touch — 320, 330, 340, 450, 480, 540. This creates hierarchy through subtle weight differences rather than dramatic jumps. The difference between 330 and 340 is nearly imperceptible but structurally significant.
-- **Light as the base**: Most body text uses 320–340 (lighter than typical 400 "regular"), creating an ethereal, airy reading experience that matches the design-tool aesthetic.
-- **Kern everywhere**: Every text element enables OpenType `"kern"` feature — kerning is not optional, it's structural.
-- **Negative tracking by default**: Even body text uses -0.1px to -0.26px letter-spacing, creating universally tight text. Display text compresses further to -0.96px and -1.72px.
-- **Mono for structure**: figmaMono in uppercase with positive letter-spacing (0.54px–0.6px) creates technical signpost labels.
+- **Gothic compression for impact**: CursorGothic at display sizes uses -2.16px letter-spacing at 72px, progressively relaxing: -0.72px at 36px, -0.325px at 26px, -0.11px at 22px, normal at 16px and below. The tracking creates a sense of precision engineering.
+- **Serif for soul**: jjannon provides literary warmth. The `"cswh"` feature adds contextual swash alternates that give body text a calligraphic quality.
+- **Three typographic voices**: Gothic (display/UI), serif (editorial/body), mono (code/technical). Each serves a distinct communication purpose.
+- **Weight restraint**: CursorGothic uses weight 400 almost exclusively, relying on size and tracking for hierarchy rather than weight. System-ui components use 500-700 for functional emphasis.
 
 ## 4. Component Stylings
 
 ### Buttons
 
-**Black Solid (Pill)**
-- Background: Pure Black (`#000000`)
-- Text: Pure White (`#ffffff`)
-- Radius: circle (50%) for icon buttons
-- Focus: dashed 2px outline
-- Maximum emphasis
+**Primary (Warm Surface)**
+- Background: `#ebeae5` (Surface 300)
+- Text: `#26251e` (Cursor Dark)
+- Padding: 10px 12px 10px 14px
+- Radius: 8px
+- Outline: none
+- Hover: text shifts to `var(--color-error)` (`#cf2d56`)
+- Focus shadow: `rgba(0,0,0,0.1) 0px 4px 12px`
+- Use: Primary actions, main CTAs
 
-**White Pill**
-- Background: Pure White (`#ffffff`)
-- Text: Pure Black (`#000000`)
-- Padding: 8px 18px 10px (asymmetric vertical)
-- Radius: pill (50px)
-- Focus: dashed 2px outline
-- Standard CTA on dark/colored surfaces
+**Secondary Pill**
+- Background: `#e6e5e0` (Surface 400)
+- Text: `oklab(0.263 / 0.6)` (60% warm brown)
+- Padding: 3px 8px
+- Radius: full pill (33.5M px)
+- Hover: text shifts to `var(--color-error)`
+- Use: Tags, filters, secondary actions
 
-**Glass Dark**
-- Background: `rgba(0, 0, 0, 0.08)` (subtle dark overlay)
-- Text: Pure Black
-- Radius: circle (50%)
-- Focus: dashed 2px outline
-- Secondary action on light surfaces
+**Tertiary Pill**
+- Background: `#e1e0db` (Surface 500)
+- Text: `oklab(0.263 / 0.6)` (60% warm brown)
+- Radius: full pill
+- Use: Active filter state, selected tags
 
-**Glass Light**
-- Background: `rgba(255, 255, 255, 0.16)` (frosted glass)
-- Text: Pure White
-- Radius: circle (50%)
-- Focus: dashed 2px outline
-- Secondary action on dark/colored surfaces
+**Ghost (Transparent)**
+- Background: `rgba(38, 37, 30, 0.06)` (6% warm brown)
+- Text: `rgba(38, 37, 30, 0.55)` (55% warm brown)
+- Padding: 6px 12px
+- Use: Tertiary actions, dismiss buttons
+
+**Light Surface**
+- Background: `#f7f7f4` (Surface 100) or `#f2f1ed` (Surface 200)
+- Text: `#26251e` or `oklab(0.263 / 0.9)` (90%)
+- Padding: 0px 8px 1px 12px
+- Use: Dropdown triggers, subtle interactive elements
 
 ### Cards & Containers
-- Background: Pure White
-- Border: none or minimal
-- Radius: 6px (small containers), 8px (images, cards, dialogs)
-- Shadow: subtle to medium elevation effects
-- Product screenshots as card content
+- Background: `#e6e5e0` or `#f2f1ed`
+- Border: `1px solid oklab(0.263 / 0.1)` (warm brown at 10%)
+- Radius: 8px (standard), 4px (compact), 10px (featured)
+- Shadow: `rgba(0,0,0,0.14) 0px 28px 70px, rgba(0,0,0,0.1) 0px 14px 32px` for elevated cards
+- Hover: shadow intensification
+
+### Inputs & Forms
+- Background: transparent or surface
+- Text: `#26251e`
+- Padding: 8px 8px 6px (textarea)
+- Border: `1px solid oklab(0.263 / 0.1)`
+- Focus: border shifts to `oklab(0.263 / 0.2)` or accent orange
 
 ### Navigation
-- Clean horizontal nav on white
-- Logo: Figma wordmark in black
-- Product tabs: pill-shaped (50px) tab navigation
-- Links: black text, underline 1px decoration
-- CTA: Black pill button
-- Hover: text color via CSS variable
+- Clean horizontal nav on warm cream background
+- Cursor logotype left-aligned (~96x24px)
+- Links: 14px CursorGothic or system-ui, weight 500
+- CTA button: warm surface with Cursor Dark text
+- Tab navigation: bottom border `1px solid oklab(0.263 / 0.1)` with active tab differentiation
+
+### Image Treatment
+- Code editor screenshots with `1px solid oklab(0.263 / 0.1)` border
+- Rounded corners: 8px standard
+- AI chat/timeline screenshots dominate feature sections
+- Warm gradient or solid cream backgrounds behind hero images
 
 ### Distinctive Components
 
-**Product Tab Bar**
-- Horizontal pill-shaped tabs (50px radius)
-- Each tab represents a Figma product area (Design, Dev Mode, Prototyping, etc.)
-- Active tab highlighted
+**AI Timeline**
+- Vertical timeline showing AI operations: thinking (peach), grep (sage), read (blue), edit (lavender)
+- Each step uses its semantic color with matching text
+- Connected with vertical lines
+- Core visual metaphor for Cursor's AI-first coding experience
 
-**Hero Gradient Section**
-- Full-width vibrant multi-color gradient background
-- White text overlay with 86px display heading
-- Product screenshots floating within the gradient
+**Code Editor Previews**
+- Dark code editor screenshots with warm cream border frame
+- berkeleyMono for code text
+- Syntax highlighting using timeline colors
 
-**Dashed Focus Indicators**
-- All interactive elements use `dashed 2px` outline on focus
-- References the selection handles in the Figma editor
-- A meta-design choice connecting website and product
+**Pricing Cards**
+- Warm surface backgrounds with bordered containers
+- Feature lists using jjannon serif for readability
+- CTA buttons with accent orange or primary dark styling
 
 ## 5. Layout Principles
 
 ### Spacing System
 - Base unit: 8px
-- Scale: 1px, 2px, 4px, 4.5px, 8px, 10px, 12px, 16px, 18px, 24px, 32px, 40px, 46px, 48px, 50px
+- Fine scale: 1.5px, 2px, 2.5px, 3px, 4px, 5px, 6px (sub-8px for micro-adjustments)
+- Standard scale: 8px, 10px, 12px, 14px (derived from extraction)
+- Extended scale (inferred): 16px, 24px, 32px, 48px, 64px, 96px
+- Notable: fine-grained sub-8px increments for precise icon/text alignment
 
 ### Grid & Container
-- Max container width: up to 1920px
-- Hero: full-width gradient with centered content
-- Product sections: alternating showcases
-- Footer: dark full-width section
-- Responsive from 559px to 1920px
+- Max content width: approximately 1200px
+- Hero: centered single-column with generous top padding (80-120px)
+- Feature sections: 2-3 column grids for cards and features
+- Full-width sections with warm cream or slightly darker backgrounds
+- Sidebar layouts for documentation and settings pages
 
 ### Whitespace Philosophy
-- **Gallery-like pacing**: Generous spacing lets each product section breathe as its own exhibit.
-- **Color sections as visual breathing**: The gradient hero and product showcases provide chromatic relief between the monochrome interface sections.
+- **Warm negative space**: The cream background means whitespace has warmth and texture, unlike cold white minimalism. Large empty areas feel cozy rather than clinical.
+- **Compressed text, open layout**: Aggressive negative letter-spacing on CursorGothic headlines is balanced by generous surrounding margins. Text is dense; space around it breathes.
+- **Section variation**: Alternating surface tones (cream → lighter cream → cream) create subtle section differentiation without harsh boundaries.
 
 ### Border Radius Scale
-- Minimal (2px): Small link elements
-- Subtle (6px): Small containers, dividers
-- Comfortable (8px): Cards, images, dialogs
-- Pill (50px): Tab buttons, CTAs
-- Circle (50%): Icon buttons, circular elements
+- Micro (1.5px): Fine detail elements
+- Small (2px): Inline elements, code spans
+- Medium (3px): Small containers, inline badges
+- Standard (4px): Cards, images, compact buttons
+- Comfortable (8px): Primary buttons, cards, menus
+- Featured (10px): Larger containers, featured cards
+- Full Pill (33.5M px / 9999px): Pill buttons, tags, badges
 
 ## 6. Depth & Elevation
 
 | Level | Treatment | Use |
 |-------|-----------|-----|
-| Flat (Level 0) | No shadow | Page background, most text |
-| Surface (Level 1) | White card on gradient/dark section | Cards, product showcases |
-| Elevated (Level 2) | Subtle shadow | Floating cards, hover states |
+| Flat (Level 0) | No shadow | Page background, text blocks |
+| Border Ring (Level 1) | `oklab(0.263 / 0.1) 0px 0px 0px 1px` | Standard card/container border (warm oklab) |
+| Border Medium (Level 1b) | `oklab(0.263 / 0.2) 0px 0px 0px 1px` | Emphasized borders, active states |
+| Ambient (Level 2) | `rgba(0,0,0,0.02) 0px 0px 16px, rgba(0,0,0,0.008) 0px 0px 8px` | Floating elements, subtle glow |
+| Elevated Card (Level 3) | `rgba(0,0,0,0.14) 0px 28px 70px, rgba(0,0,0,0.1) 0px 14px 32px, oklab ring` | Modals, popovers, elevated cards |
+| Focus | `rgba(0,0,0,0.1) 0px 4px 12px` on button focus | Interactive focus feedback |
 
-**Shadow Philosophy**: Figma uses shadows sparingly. The primary depth mechanisms are **background contrast** (white content on colorful/dark sections) and the inherent dimensionality of the product screenshots themselves.
+**Shadow Philosophy**: Cursor's depth system is built around two ideas. First, borders use perceptually uniform oklab color space rather than rgba, ensuring warm brown borders look consistent across different background tones. Second, elevation shadows use dramatically large blur values (28px, 70px) with moderate opacity (0.14, 0.1), creating a diffused, atmospheric lift rather than hard-edged drop shadows. Cards don't feel like they float above the page -- they feel like the page has gently opened a space for them.
 
-## 7. Do's and Don'ts
+### Decorative Depth
+- Warm cream surface variations create subtle tonal depth without shadows
+- oklab borders at 10% and 20% create a spectrum of edge definition
+- No harsh divider lines -- section separation through background tone shifts and spacing
 
-### Do
-- Use figmaSans with precise variable weights (320–540) — the granular weight control IS the design
-- Keep the interface strictly black-and-white — color comes from product content only
-- Use pill (50px) and circular (50%) geometry for all interactive elements
-- Apply dashed 2px focus outlines — the signature accessibility pattern
-- Enable `"kern"` feature on all text
-- Use figmaMono in uppercase with positive letter-spacing for labels
-- Apply negative letter-spacing throughout (-0.1px to -1.72px)
+## 7. Interaction & Motion
 
-### Don't
-- Don't add interface colors — the monochrome palette is absolute
-- Don't use standard font weights (400, 500, 600, 700) — use the variable font's unique stops (320, 330, 340, 450, 480, 540)
-- Don't use sharp corners on buttons — pill and circular geometry only
-- Don't use solid focus outlines — dashed is the signature
-- Don't increase body font weight above 450 — the light-weight aesthetic is core
-- Don't use positive letter-spacing on body text — it's always negative
+### Hover States
+- Buttons: text color shifts to `--color-error` (`#cf2d56`) on hover -- a distinctive warm crimson that signals interactivity
+- Links: color shift to accent orange (`#f54e00`) or underline decoration with `rgba(38, 37, 30, 0.4)`
+- Cards: shadow intensification on hover (ambient → elevated)
+
+### Focus States
+- Shadow-based focus: `rgba(0,0,0,0.1) 0px 4px 12px` for depth-based focus indication
+- Border focus: `oklab(0.263 / 0.2)` (20% border) for input/form focus
+- Consistent warm tone in all focus states -- no cold blue focus rings
+
+### Transitions
+- Color transitions: 150ms ease for text/background color changes
+- Shadow transitions: 200ms ease for elevation changes
+- Transform: subtle scale or translate for interactive feedback
 
 ## 8. Responsive Behavior
 
 ### Breakpoints
 | Name | Width | Key Changes |
 |------|-------|-------------|
-| Small Mobile | <560px | Compact layout, stacked |
-| Tablet | 560–768px | Minor adjustments |
-| Small Desktop | 768–960px | 2-column layouts |
-| Desktop | 960–1280px | Standard layout |
-| Large Desktop | 1280–1440px | Expanded |
-| Ultra-wide | 1440–1920px | Maximum width |
+| Mobile | <600px | Single column, reduced padding, stacked navigation |
+| Tablet Small | 600-768px | 2-column grids begin |
+| Tablet | 768-900px | Expanded card grids, sidebar appears |
+| Desktop Small | 900-1279px | Full layout forming |
+| Desktop | >1279px | Full layout, maximum content width |
+
+### Touch Targets
+- Buttons use comfortable padding (6px-14px vertical, 8px-14px horizontal)
+- Pill buttons maintain tap-friendly sizing with 3px-10px padding
+- Navigation links at 14px with adequate spacing for touch
 
 ### Collapsing Strategy
-- Hero text: 86px → 64px → 48px
-- Product tabs: horizontal scroll on mobile
-- Feature sections: stacked single column
-- Footer: multi-column → stacked
+- Hero: 72px CursorGothic → 36px → 26px on smaller screens, maintaining proportional letter-spacing
+- Navigation: horizontal links → hamburger menu on mobile
+- Feature cards: 3-column → 2-column → single column stacked
+- Code editor screenshots: maintain aspect ratio, may shrink with border treatment preserved
+- Timeline visualization: horizontal → vertical stacking
+- Section spacing: 80px+ → 48px → 32px on mobile
+
+### Image Behavior
+- Editor screenshots maintain warm border treatment at all sizes
+- AI timeline adapts from horizontal to vertical layout
+- Product screenshots use responsive images with consistent border radius
+- Full-width hero images scale proportionally
 
 ## 9. Agent Prompt Guide
 
 ### Quick Color Reference
-- Everything: "Pure Black (#000000)" and "Pure White (#ffffff)"
-- Glass Dark: "rgba(0, 0, 0, 0.08)"
-- Glass Light: "rgba(255, 255, 255, 0.16)"
+- Primary CTA background: `#ebeae5` (warm cream button)
+- Page background: `#f2f1ed` (warm off-white)
+- Text color: `#26251e` (warm near-black)
+- Secondary text: `rgba(38, 37, 30, 0.55)` (55% warm brown)
+- Accent: `#f54e00` (orange)
+- Error/hover: `#cf2d56` (warm crimson)
+- Success: `#1f8a65` (muted teal)
+- Border: `oklab(0.263084 -0.00230259 0.0124794 / 0.1)` or `rgba(38, 37, 30, 0.1)` as fallback
 
 ### Example Component Prompts
-- "Create a hero on a vibrant multi-color gradient (green, yellow, purple, pink). Headline at 86px figmaSans weight 400, line-height 1.0, letter-spacing -1.72px. White text. White pill CTA button (50px radius, 8px 18px padding)."
-- "Design a product tab bar with pill-shaped buttons (50px radius). Active: Black bg, white text. Inactive: transparent, black text. figmaSans at 20px weight 480."
-- "Build a section label: figmaMono 18px, uppercase, letter-spacing 0.54px, black text. Kern enabled."
-- "Create body text at 20px figmaSans weight 330, line-height 1.40, letter-spacing -0.14px. Pure Black on white."
+- "Create a hero section on `#f2f1ed` warm cream background. Headline at 72px CursorGothic weight 400, line-height 1.10, letter-spacing -2.16px, color `#26251e`. Subtitle at 17.28px jjannon weight 400, line-height 1.35, color `rgba(38,37,30,0.55)`. Primary CTA button (`#ebeae5` bg, 8px radius, 10px 14px padding) with hover text shift to `#cf2d56`."
+- "Design a card: `#e6e5e0` background, border `1px solid rgba(38,37,30,0.1)`. Radius 8px. Title at 22px CursorGothic weight 400, letter-spacing -0.11px. Body at 17.28px jjannon weight 400, color `rgba(38,37,30,0.55)`. Use `#f54e00` for link accents."
+- "Build a pill tag: `#e6e5e0` background, `rgba(38,37,30,0.6)` text, full-pill radius (9999px), 3px 8px padding, 14px CursorGothic weight 400."
+- "Create navigation: sticky `#f2f1ed` background with backdrop-filter blur. 14px system-ui weight 500 for links, `#26251e` text. CTA button right-aligned with `#ebeae5` bg and 8px radius. Bottom border `1px solid rgba(38,37,30,0.1)`."
+- "Design an AI timeline showing four steps: Thinking (`#dfa88f`), Grep (`#9fc9a2`), Read (`#9fbbe0`), Edit (`#c0a8dd`). Each step: 14px system-ui label + 16px CursorGothic description + vertical connecting line in `rgba(38,37,30,0.1)`."
 
 ### Iteration Guide
-1. Use variable font weight stops precisely: 320, 330, 340, 450, 480, 540, 700
-2. Interface is always black + white — never add colors to chrome
-3. Dashed focus outlines, not solid
-4. Letter-spacing is always negative on body, always positive on mono labels
-5. Pill (50px) for buttons/tabs, circle (50%) for icon buttons
+1. Always use warm tones -- `#f2f1ed` background, `#26251e` text, never pure white/black for primary surfaces
+2. Letter-spacing scales with font size for CursorGothic: -2.16px at 72px, -0.72px at 36px, -0.325px at 26px, normal at 16px
+3. Use `rgba(38, 37, 30, alpha)` as a CSS-compatible fallback for oklab borders
+4. Three fonts, three voices: CursorGothic (display/UI), jjannon (editorial), berkeleyMono (code)
+5. Pill shapes (9999px radius) for tags and filters; 8px radius for primary buttons and cards
+6. Hover states use `#cf2d56` text color -- the warm crimson shift is a signature interaction
+7. Shadows use large blur values (28px, 70px) for diffused atmospheric depth
+8. The sub-8px spacing scale (1.5, 2, 2.5, 3, 4, 5, 6px) is critical for icon/text micro-alignment

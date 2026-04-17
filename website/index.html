@@ -1,17 +1,17 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ForgePilot Agent - 官方下载</title>
+    <title>ForgePilot Agent - 官网下载</title>
     <meta
       name="description"
-      content="ForgePilot Agent 官方下载页。获取 Windows、macOS、Linux 最新版本，查看更新日志与安装说明。"
+      content="ForgePilot Agent 官网下载页。获取 Windows、macOS、Linux 最新版本，查看更新日志与安装说明。"
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500&family=JetBrains+Mono:wght@400;600&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./styles.css" />
@@ -19,12 +19,7 @@
   <body>
     <header class="site-header">
       <a class="brand" href="#top" aria-label="ForgePilot Agent">
-        <span class="brand-mark" aria-hidden="true">
-          <i class="dot dot-red"></i>
-          <i class="dot dot-yellow"></i>
-          <i class="dot dot-green"></i>
-          <i class="dot dot-purple"></i>
-        </span>
+        <span class="brand-mark" aria-hidden="true"></span>
         <span class="brand-text">ForgePilot Agent</span>
       </a>
       <nav class="site-nav" aria-label="主导航">
@@ -33,27 +28,26 @@
         <a href="#guide">安装</a>
         <a href="#faq">FAQ</a>
       </nav>
-      <a class="btn btn-dark btn-pill" href="#downloads">立即下载</a>
+      <a class="btn btn-dark btn-pill" href="#downloads">下载客户端</a>
     </header>
 
     <main id="top">
       <section class="hero">
         <div class="hero-copy">
           <p class="mono-tag">FORGEPILOT DESKTOP</p>
-          <h1>下载你的下一代本地 AI Agent 工作台</h1>
+          <h1>一个更懂开发者节奏的 AI 桌面工作台</h1>
           <p class="hero-subtitle">
-            黑白界面骨架 + 高饱和创作能量。为开发与自动化任务而生，支持本地会话、工具编排与多模型接入。
+            参考 Cursor 风格的温暖暗色开发体验。聚焦代码执行流、工具编排与真实文件产出，而不是空洞对话。
           </p>
           <div class="hero-actions">
-            <a class="btn btn-light btn-pill" href="#downloads">选择系统版本</a>
+            <a class="btn btn-light btn-pill" href="#downloads">按系统下载</a>
             <a
-              class="btn btn-glass btn-circle"
-              href="https://github.com/"
+              class="btn btn-ghost btn-pill"
+              href="https://github.com/Duang777/forgepilot-agent"
               target="_blank"
               rel="noreferrer"
               aria-label="打开 GitHub 仓库"
-              title="查看 GitHub 仓库"
-              >↗</a
+              >查看源码</a
             >
           </div>
         </div>
@@ -67,7 +61,7 @@
             <strong id="build-targets">Win / macOS / Linux</strong>
           </div>
           <div class="metric">
-            <span class="metric-label">Publish</span>
+            <span class="metric-label">Release</span>
             <strong id="release-status">GitHub Releases</strong>
           </div>
         </div>
@@ -78,9 +72,7 @@
           <p class="mono-tag">DOWNLOADS</p>
           <h2>选择你的系统版本</h2>
         </div>
-        <p class="download-tip" id="download-tip">
-          正在同步最新 Release 下载资产...
-        </p>
+        <p class="download-tip" id="download-tip">正在同步最新 Release 下载资产...</p>
         <div class="download-grid">
           <article class="download-card">
             <h3>Windows x64</h3>
@@ -91,13 +83,7 @@
               href="https://github.com/Duang777/forgepilot-agent/releases"
               >下载 .exe</a
             >
-            <button
-              class="copy-btn"
-              data-copy="未获取到校验码"
-              type="button"
-            >
-              复制校验码
-            </button>
+            <button class="copy-btn" data-copy="未获取到校验码" type="button">复制校验码</button>
           </article>
 
           <article class="download-card">
@@ -109,13 +95,7 @@
               href="https://github.com/Duang777/forgepilot-agent/releases"
               >下载 .dmg</a
             >
-            <button
-              class="copy-btn"
-              data-copy="未获取到校验码"
-              type="button"
-            >
-              复制校验码
-            </button>
+            <button class="copy-btn" data-copy="未获取到校验码" type="button">复制校验码</button>
           </article>
 
           <article class="download-card">
@@ -127,13 +107,7 @@
               href="https://github.com/Duang777/forgepilot-agent/releases"
               >下载 .AppImage</a
             >
-            <button
-              class="copy-btn"
-              data-copy="未获取到校验码"
-              type="button"
-            >
-              复制校验码
-            </button>
+            <button class="copy-btn" data-copy="未获取到校验码" type="button">复制校验码</button>
           </article>
         </div>
       </section>
@@ -167,15 +141,15 @@
         <div class="guide-grid">
           <article class="guide-card">
             <h3>1. 下载对应系统包</h3>
-            <p>优先使用上方“最新版本”链接，避免手动选错架构。</p>
+            <p>优先使用“最新版本”资产，避免手动选择错误架构。</p>
           </article>
           <article class="guide-card">
             <h3>2. 校验文件哈希</h3>
-            <p>点击“复制校验码”，在本地对照 SHA256，确认包完整。</p>
+            <p>点击“复制校验码”，在本地对照 SHA256，确认安装包完整。</p>
           </article>
           <article class="guide-card">
             <h3>3. 首次启动初始化</h3>
-            <p>启动后配置模型与 API，即可进入对话执行与任务模式。</p>
+            <p>启动后配置模型与 API，即可进入任务执行与工具模式。</p>
           </article>
         </div>
       </section>
@@ -187,22 +161,16 @@
         </div>
         <div class="faq-list">
           <details>
-            <summary>为什么我下载后点击无反应？</summary>
-            <p>
-              请确认系统安全策略没有阻止应用启动，并优先使用管理员身份运行一次。
-            </p>
+            <summary>为什么下载后点击无反应？</summary>
+            <p>请确认系统安全策略没有阻止应用启动，并优先使用管理员身份运行一次。</p>
           </details>
           <details>
             <summary>出现 network error 怎么办？</summary>
-            <p>
-              多数情况是本地 API 进程未运行或端口不一致。请检查 2026 端口并重启应用。
-            </p>
+            <p>多数情况是本地 API 进程未运行或端口不一致，请检查 2026 端口并重启应用。</p>
           </details>
           <details>
             <summary>可以离线使用吗？</summary>
-            <p>
-              工具与文件能力可离线执行，但模型推理仍需可访问的模型服务端点。
-            </p>
+            <p>工具与文件能力可离线执行，但模型推理仍需可访问的模型服务端点。</p>
           </details>
         </div>
       </section>
@@ -210,9 +178,7 @@
 
     <footer class="site-footer">
       <p>© 2026 ForgePilot Agent</p>
-      <a href="https://github.com/Duang777/forgepilot-agent" target="_blank" rel="noreferrer"
-        >GitHub 仓库</a
-      >
+      <a href="https://github.com/Duang777/forgepilot-agent" target="_blank" rel="noreferrer">GitHub 仓库</a>
     </footer>
 
     <script src="./script.js"></script>

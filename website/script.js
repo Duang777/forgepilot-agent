@@ -1,12 +1,12 @@
-(() => {
+﻿(() => {
   const REPO = "Duang777/forgepilot-agent";
   const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
   function pickAsset(assets, platform) {
     const byPlatform = {
-      windows: [/windows/i, /win/i, /\.exe$/i, /\.msi$/i],
-      macos: [/macos/i, /darwin/i, /aarch64/i, /\.dmg$/i, /\.pkg$/i],
-      linux: [/linux/i, /appimage/i, /\.AppImage$/i, /\.deb$/i, /\.rpm$/i],
+      windows: [/windows/i, /win/i, /x64/i, /\.exe$/i, /\.msi$/i],
+      macos: [/macos/i, /darwin/i, /aarch64/i, /arm64/i, /\.dmg$/i, /\.pkg$/i],
+      linux: [/linux/i, /appimage/i, /x86_64/i, /\.AppImage$/i, /\.deb$/i, /\.rpm$/i],
     };
     const rules = byPlatform[platform] || [];
     if (!assets.length) return null;
@@ -28,9 +28,7 @@
     const targets = document.getElementById("build-targets");
 
     if (!payload) {
-      if (tip) {
-        tip.textContent = "未找到可用 release，先前往 Releases 页面查看。";
-      }
+      if (tip) tip.textContent = "暂未发现可用 latest release，已回退到 Releases 页面。";
       if (version) version.textContent = "no release";
       if (status) status.textContent = "Release pending";
       if (targets) targets.textContent = "Pending / Pending / Pending";
@@ -45,7 +43,7 @@
     if (version) version.textContent = payload.tag_name || "latest";
     if (status) status.textContent = "Published";
     if (tip) {
-      tip.textContent = `已同步 ${payload.tag_name || "latest"} 资产，共 ${assets.length} 个文件。`;
+      tip.textContent = `已同步 ${payload.tag_name || "latest"}，共 ${assets.length} 个资产文件。`;
     }
 
     let resolvedCount = 0;
@@ -66,7 +64,7 @@
         link.href = RELEASES_URL;
         link.textContent = "打开 Releases";
         if (copyBtn) {
-          copyBtn.setAttribute("data-copy", "未提供校验码");
+          copyBtn.setAttribute("data-copy", "该资产未提供校验码");
         }
       }
     });
@@ -78,14 +76,11 @@
 
   async function loadLatestRelease() {
     try {
-      const response = await fetch(
-        `https://api.github.com/repos/${REPO}/releases/latest`,
-        {
-          headers: {
-            Accept: "application/vnd.github+json",
-          },
-        }
-      );
+      const response = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+        headers: {
+          Accept: "application/vnd.github+json",
+        },
+      });
       if (!response.ok) {
         updateReleaseUi(null);
         return;
