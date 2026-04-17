@@ -23,7 +23,9 @@
         <span class="brand-text">ForgePilot Agent</span>
       </a>
       <nav class="site-nav" aria-label="主导航">
+        <a href="#workspace">工作区</a>
         <a href="#downloads">下载</a>
+        <a href="#ai-timeline">AI Timeline</a>
         <a href="#release-notes">更新</a>
         <a href="#guide">安装</a>
         <a href="#faq">FAQ</a>
@@ -64,6 +66,48 @@
             <span class="metric-label">Release</span>
             <strong id="release-status">GitHub Releases</strong>
           </div>
+        </div>
+      </section>
+
+      <section id="workspace" class="section workspace-showcase">
+        <div class="section-head">
+          <p class="mono-tag">EDITOR PREVIEW</p>
+          <h2>像 Cursor 一样的代码工作区</h2>
+        </div>
+        <p class="workspace-lead">
+          编辑器主视图、终端输出、任务状态在一个画面里同步更新。代码在左，执行反馈在右，减少上下文切换。
+        </p>
+        <div class="workspace-grid">
+          <article class="editor-shell" aria-label="代码编辑器截图模拟">
+            <div class="editor-topbar">
+              <span class="dot dot-red" aria-hidden="true"></span>
+              <span class="dot dot-yellow" aria-hidden="true"></span>
+              <span class="dot dot-green" aria-hidden="true"></span>
+              <p class="editor-file">forgepilot_sdk/engine.py</p>
+            </div>
+            <pre class="editor-code"><code><span class="ln">1</span><span class="code"><span class="kw">async</span> <span class="fn">def</span> submit_message(prompt):</span>
+<span class="ln">2</span><span class="code">    messages.append({"role": <span class="str">"user"</span>, "content": prompt})</span>
+<span class="ln">3</span><span class="code">    <span class="kw">while</span> turns &lt; max_turns:</span>
+<span class="ln">4</span><span class="code">        response = <span class="kw">await</span> provider.create_message(messages)</span>
+<span class="ln">5</span><span class="code">        <span class="kw">if</span> response.tool_calls:</span>
+<span class="ln">6</span><span class="code">            events = <span class="kw">await</span> execute_tools(response.tool_calls)</span>
+<span class="ln">7</span><span class="code">            messages.extend(events.as_tool_messages())</span>
+<span class="ln">8</span><span class="code">        <span class="kw">else</span>:</span>
+<span class="ln">9</span><span class="code">            <span class="kw">return</span> response.text</span></code></pre>
+          </article>
+          <article class="terminal-shell" aria-label="运行状态截图模拟">
+            <header>
+              <p class="mono-tag">LIVE RUN</p>
+              <p class="terminal-title">Desktop task stream</p>
+            </header>
+            <div class="terminal-lines">
+              <p><span>[13:42:05]</span> Loading session <strong>sess_42ca</strong></p>
+              <p><span>[13:42:06]</span> Tool call: <strong>search_query</strong> started</p>
+              <p><span>[13:42:07]</span> Tool result: 12 matches from docs</p>
+              <p><span>[13:42:08]</span> Applying patch to <strong>website/styles.css</strong></p>
+              <p><span>[13:42:10]</span> Finished in 5 turns, no retries</p>
+            </div>
+          </article>
         </div>
       </section>
 
@@ -109,6 +153,34 @@
             >
             <button class="copy-btn" data-copy="未获取到校验码" type="button">复制校验码</button>
           </article>
+        </div>
+      </section>
+
+      <section id="ai-timeline" class="section">
+        <div class="section-head">
+          <p class="mono-tag">AI TIMELINE</p>
+          <h2>任务执行时间线</h2>
+        </div>
+        <p class="workspace-lead">
+          每次任务都会被拆成可追踪阶段，帮助你快速判断现在模型在思考、搜索、读文件还是改代码。
+        </p>
+        <div class="timeline-chips" role="list" aria-label="AI timeline 状态色块">
+          <div class="timeline-chip thinking" role="listitem">
+            <span class="chip-label">thinking</span>
+            <p>规划步骤与评估风险</p>
+          </div>
+          <div class="timeline-chip grep" role="listitem">
+            <span class="chip-label">grep</span>
+            <p>检索文件与关键上下文</p>
+          </div>
+          <div class="timeline-chip read" role="listitem">
+            <span class="chip-label">read</span>
+            <p>读取源码并定位差异</p>
+          </div>
+          <div class="timeline-chip edit" role="listitem">
+            <span class="chip-label">edit</span>
+            <p>应用补丁并执行验证</p>
+          </div>
         </div>
       </section>
 

@@ -9,6 +9,10 @@
   --cursor-border-strong: rgba(38, 37, 30, 0.28);
   --cursor-accent: #f54e00;
   --cursor-error: #cf2d56;
+  --timeline-thinking: #dfa88f;
+  --timeline-grep: #9fc9a2;
+  --timeline-read: #9fbbe0;
+  --timeline-edit: #c0a8dd;
   --cursor-shadow: rgba(0, 0, 0, 0.14) 0 28px 70px, rgba(0, 0, 0, 0.1) 0 14px 32px;
   --cursor-focus: 0 0 0 2px rgba(245, 78, 0, 0.4);
 }
@@ -247,6 +251,196 @@ summary:focus-visible {
   font-weight: 600;
 }
 
+.workspace-showcase {
+  padding-top: 18px;
+}
+
+.workspace-lead {
+  margin: 12px 0 0;
+  max-width: 78ch;
+  color: var(--cursor-text-soft);
+  font-family: "IBM Plex Serif", Georgia, serif;
+}
+
+.workspace-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 14px;
+}
+
+.editor-shell,
+.terminal-shell {
+  border: 1px solid var(--cursor-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--cursor-surface-2);
+  box-shadow: rgba(0, 0, 0, 0.03) 0 10px 24px, rgba(0, 0, 0, 0.03) 0 4px 14px;
+}
+
+.editor-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--cursor-border);
+  background: color-mix(in srgb, var(--cursor-surface-3) 90%, #ffffff 10%);
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 9999px;
+}
+
+.dot-red {
+  background: #f1897f;
+}
+
+.dot-yellow {
+  background: #dcbb72;
+}
+
+.dot-green {
+  background: #99c388;
+}
+
+.editor-file {
+  margin: 0 0 0 4px;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 0.74rem;
+  color: var(--cursor-text-soft);
+}
+
+.editor-code {
+  margin: 0;
+  padding: 14px 14px 16px;
+  min-height: 236px;
+  background: color-mix(in srgb, var(--cursor-surface) 88%, #ffffff 12%);
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.7;
+  overflow-x: auto;
+}
+
+.editor-code code {
+  display: grid;
+  gap: 2px;
+}
+
+.editor-code .ln {
+  display: inline-block;
+  width: 22px;
+  color: rgba(38, 37, 30, 0.45);
+  user-select: none;
+}
+
+.editor-code .code {
+  color: #2f2c22;
+}
+
+.editor-code .kw {
+  color: #c74924;
+}
+
+.editor-code .fn {
+  color: #2b4f84;
+}
+
+.editor-code .str {
+  color: #9f4d1e;
+}
+
+.terminal-shell {
+  padding: 14px;
+  display: grid;
+  align-content: space-between;
+}
+
+.terminal-shell header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  border-bottom: 1px dashed var(--cursor-border);
+  padding-bottom: 10px;
+}
+
+.terminal-title {
+  margin: 0;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 0.74rem;
+  color: var(--cursor-text-soft);
+}
+
+.terminal-lines {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.terminal-lines p {
+  margin: 0;
+  background: var(--cursor-surface-3);
+  border: 1px solid var(--cursor-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 0.75rem;
+}
+
+.terminal-lines span {
+  color: var(--cursor-text-soft);
+}
+
+.timeline-chips {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.timeline-chip {
+  border: 1px solid rgba(38, 37, 30, 0.18);
+  border-radius: 12px;
+  padding: 12px;
+  min-height: 118px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.timeline-chip p {
+  margin: 0;
+  font-family: "IBM Plex Serif", Georgia, serif;
+  color: color-mix(in srgb, var(--cursor-text) 70%, #ffffff 30%);
+  font-size: 0.93rem;
+}
+
+.chip-label {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.72rem;
+  color: #231f17;
+}
+
+.timeline-chip.thinking {
+  background: color-mix(in srgb, var(--timeline-thinking) 58%, #f6f0eb 42%);
+}
+
+.timeline-chip.grep {
+  background: color-mix(in srgb, var(--timeline-grep) 54%, #eef4ee 46%);
+}
+
+.timeline-chip.read {
+  background: color-mix(in srgb, var(--timeline-read) 52%, #edf2f8 48%);
+}
+
+.timeline-chip.edit {
+  background: color-mix(in srgb, var(--timeline-edit) 50%, #f1eef8 50%);
+}
+
 .download-tip {
   margin: 14px 0 0;
   font-family: "JetBrains Mono", monospace;
@@ -372,6 +566,14 @@ summary {
     grid-template-columns: 1fr;
   }
 
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-chips {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .download-grid,
   .guide-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -396,6 +598,14 @@ summary {
   .download-grid,
   .guide-grid {
     grid-template-columns: 1fr;
+  }
+
+  .timeline-chips {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-code {
+    min-height: 196px;
   }
 
   .site-footer {
