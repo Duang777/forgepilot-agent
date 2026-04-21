@@ -58,3 +58,15 @@
 - Project name: `forgepilot-agent`
 - Package names: `forgepilot_sdk`, `forgepilot_api`
 - Deprecated transitional names are not allowed in source.
+
+## Repository Hygiene
+
+- Keep repo root focused on source and project config only.
+- Runtime/generated artifacts must stay out of git:
+  - Python caches/venv: `__pycache__/`, `.venv/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`
+  - Build/runtime outputs: `.build/`, `.runlogs/`, `sessions/`, `dist/`, `coverage/`
+  - Local frontend noise: root `node_modules/`, root `vite.config.js`, root `package-lock.json`
+- Package manager policy:
+  - Node package manager is `pnpm` (via corepack)
+  - Do not commit `package-lock.json`
+  - `.npmrc` enforces `package-lock=false`

@@ -11,6 +11,11 @@ __pycache__/
 .build/
 .runlogs/
 sessions/
+.DS_Store
+*.swp
+*.swo
+*.tmp
+*.temp
 
 # editor/tooling
 .idea/
@@ -22,3 +27,11 @@ sessions/
 .refs/**/node_modules/
 .refs/**/dist/
 .refs/**/target/
+
+# root workspace noise
+/node_modules/
+/dist/
+/coverage/
+/package-lock.json
+/vite.config.js
+/C:\\work/
