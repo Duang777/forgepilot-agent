@@ -6,7 +6,7 @@ import re
 import shutil
 import subprocess
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any, Awaitable, Callable
@@ -193,7 +193,7 @@ def _resolve_path(cwd: Path, value: str) -> Path:
 
 
 def _now() -> str:
-    return datetime.utcnow().isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _to_json(value: Any) -> str:
@@ -929,7 +929,7 @@ async def _agent_tool(input_data: dict[str, Any], ctx: ToolContext) -> ToolResul
 
 
 async def _enter_worktree_tool(input_data: dict[str, Any], ctx: ToolContext) -> ToolResult:
-    branch = str(input_data.get("branch") or f"worktree-{int(datetime.utcnow().timestamp())}").strip()
+    branch = str(input_data.get("branch") or f"worktree-{int(datetime.now(timezone.utc).timestamp())}").strip()
     path_input = input_data.get("path")
 
     try:
@@ -2163,4 +2163,3 @@ def build_core_tools() -> list:
     )
 
     return tools
-

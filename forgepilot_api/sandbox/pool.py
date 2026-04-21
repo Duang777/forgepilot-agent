@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 from forgepilot_api.sandbox.types import ISandboxProvider
@@ -54,7 +54,7 @@ class SandboxPool:
             for instance in instances:
                 if not instance.in_use:
                     instance.in_use = True
-                    instance.last_used_at = datetime.utcnow()
+                    instance.last_used_at = datetime.now(timezone.utc)
                     return instance
 
             await self._cleanup_if_needed()
@@ -75,7 +75,7 @@ class SandboxPool:
             )
 
             self._id_counter += 1
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             instance = PooledSandbox(
                 id=f"sandbox-{self._id_counter}",
                 image=image,
@@ -89,7 +89,7 @@ class SandboxPool:
 
     def release(self, instance: PooledSandbox) -> None:
         instance.in_use = False
-        instance.last_used_at = datetime.utcnow()
+        instance.last_used_at = datetime.now(timezone.utc)
 
     async def _cleanup_if_needed(self) -> None:
         if self._total_count() < self._max_size:
@@ -176,4 +176,3 @@ async def shutdown_global_sandbox_pool() -> None:
     if _global_pool is not None:
         await _global_pool.stop_all()
         _global_pool = None
-

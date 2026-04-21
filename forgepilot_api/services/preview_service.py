@@ -4,7 +4,7 @@ import asyncio
 import json
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
@@ -81,7 +81,7 @@ class PreviewManager:
         async with self._lock:
             existing = self._instances.get(task_id)
             if existing and existing.status in {"running", "starting"}:
-                existing.last_accessed_at = datetime.utcnow()
+                existing.last_accessed_at = datetime.now(timezone.utc)
                 self._reset_idle_timeout(existing)
                 return self._to_status(existing)
 
@@ -112,8 +112,8 @@ class PreviewManager:
                 work_dir=root,
                 port=allocated,
                 status="starting",
-                started_at=datetime.utcnow(),
-                last_accessed_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
+                last_accessed_at=datetime.now(timezone.utc),
             )
             self._instances[task_id] = instance
             instance.startup_task = asyncio.create_task(self._start_vite_server(instance))
@@ -148,7 +148,7 @@ class PreviewManager:
         instance = self._instances.get(task_id)
         if instance is None:
             return self._stopped_status(task_id)
-        instance.last_accessed_at = datetime.utcnow()
+        instance.last_accessed_at = datetime.now(timezone.utc)
         self._reset_idle_timeout(instance)
         return self._to_status(instance)
 

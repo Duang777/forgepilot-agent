@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -93,7 +93,7 @@ def test_pool_cleanup_oldest_unused_when_full() -> None:
 
         oldest = await pool.acquire("img-1")
         pool.release(oldest)
-        oldest.last_used_at = datetime.utcnow() - timedelta(minutes=5)
+        oldest.last_used_at = datetime.now(timezone.utc) - timedelta(minutes=5)
 
         newer = await pool.acquire("img-2")
         pool.release(newer)
@@ -158,4 +158,3 @@ def test_global_pool_lifecycle() -> None:
             get_global_sandbox_pool()
 
     asyncio.run(_run())
-

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
 import time
+from datetime import datetime, timezone
+
+from fastapi import APIRouter
 
 router = APIRouter(prefix="/health", tags=["health"])
 _start_time = time.time()
@@ -11,7 +13,7 @@ _start_time = time.time()
 async def health() -> dict[str, object]:
     return {
         "status": "ok",
-        "timestamp": __import__("datetime").datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "uptime": time.time() - _start_time,
     }
 
@@ -54,4 +56,3 @@ async def install_dependency(dep_id: str) -> dict:
         "id": dep_id,
         "message": "No installation needed. Agent runs in-process.",
     }
-

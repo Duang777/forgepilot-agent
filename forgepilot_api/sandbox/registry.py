@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Literal
 
 from forgepilot_api.sandbox.claude import ClaudeProvider
@@ -169,7 +169,7 @@ class SandboxRegistry:
 
         if instance and instance.state == "ready":
             if _deep_equal_config(instance.config, config):
-                instance.last_used_at = datetime.utcnow()
+                instance.last_used_at = datetime.now(timezone.utc)
                 return instance.provider
             await self._shutdown_instance(key, instance)
             instance = None
@@ -183,8 +183,8 @@ class SandboxRegistry:
             provider=provider,
             state="initializing",
             config=config,
-            created_at=datetime.utcnow(),
-            last_used_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            last_used_at=datetime.now(timezone.utc),
         )
         self._instances[key] = instance
         try:
@@ -296,4 +296,3 @@ async def get_available_sandbox_providers() -> list[str]:
 
 async def stop_all_sandbox_providers() -> None:
     await get_sandbox_registry().stop_all()
-

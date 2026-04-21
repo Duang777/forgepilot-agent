@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -111,7 +111,7 @@ def test_agent_task_index_increments_for_same_session(monkeypatch) -> None:
     async def _fixed_session(_phase: str = "execute") -> AgentSession:
         return AgentSession(
             id=session_id,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             phase="execute",
             abort_event=asyncio.Event(),
         )
@@ -137,4 +137,3 @@ def test_agent_task_index_increments_for_same_session(monkeypatch) -> None:
     assert int(task1["task_index"]) == 1
     assert int(task2["task_index"]) == 2
     assert int(session["task_count"]) == 2
-

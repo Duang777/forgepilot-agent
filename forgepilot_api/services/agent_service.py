@@ -8,7 +8,7 @@ import re
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncGenerator
 from urllib.parse import quote
@@ -149,13 +149,13 @@ def _parse_datetime(raw: Any) -> datetime:
         try:
             return datetime.fromisoformat(raw.replace("Z", "+00:00"))
         except Exception:
-            return datetime.utcnow()
-    return datetime.utcnow()
+            return datetime.now(timezone.utc)
+    return datetime.now(timezone.utc)
 
 
 async def create_session_async(phase: str = "plan") -> AgentSession:
     session_id = str(uuid.uuid4())
-    session = _build_session(session_id, phase, datetime.utcnow(), aborted=False)
+    session = _build_session(session_id, phase, datetime.now(timezone.utc), aborted=False)
     _local_sessions[session_id] = session
     await create_runtime_session(session_id, phase)
     return session
@@ -167,7 +167,7 @@ def create_session(phase: str = "plan") -> AgentSession:
     except RuntimeError:
         return asyncio.run(create_session_async(phase))
     session_id = str(uuid.uuid4())
-    session = _build_session(session_id, phase, datetime.utcnow(), aborted=False)
+    session = _build_session(session_id, phase, datetime.now(timezone.utc), aborted=False)
     _local_sessions[session_id] = session
     # Avoid fire-and-forget DB tasks on transient event loops.
     # Async call sites should use create_session_async() for persisted runtime state.
@@ -531,7 +531,7 @@ def _build_fallback_plan_from_prompt(prompt: str) -> dict[str, Any]:
             {"id": "3", "description": "Verify outputs and summarize completion", "status": "pending"},
         ],
         "notes": "Auto-generated fallback plan because planning response was not actionable.",
-        "createdAt": datetime.utcnow().isoformat(),
+        "createdAt": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -723,7 +723,7 @@ def _parse_plan_from_response(response_text: str) -> dict[str, Any] | None:
         "goal": str(parsed.get("goal") or "Unknown goal"),
         "steps": steps,
         "notes": str(parsed.get("notes") or ""),
-        "createdAt": datetime.utcnow().isoformat(),
+        "createdAt": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -959,7 +959,7 @@ def _save_images_to_workdir(images: list[dict[str, Any]] | None, work_dir: Path)
             raw = base64.b64decode(payload, validate=False)
             mime_type = str(image.get("mimeType") or "image/png")
             ext = mime_type.split("/")[-1] if "/" in mime_type else "png"
-            filename = f"image_{int(datetime.utcnow().timestamp() * 1000)}_{idx}.{ext}"
+            filename = f"image_{int(datetime.now(timezone.utc).timestamp() * 1000)}_{idx}.{ext}"
             path = work_dir / filename
             path.write_bytes(raw)
             saved.append(str(path))
@@ -1460,5 +1460,4 @@ async def runAgent(
         language=language,
     ):
         yield event
-
 

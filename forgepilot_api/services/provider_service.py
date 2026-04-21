@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Protocol
 
 from forgepilot_api.sandbox.registry import get_sandbox_registry
@@ -291,7 +291,7 @@ class ProviderManager:
             _ProviderEvent(
                 type="provider:switched",
                 provider_type=provider_type,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 data={"category": category},
             )
         )

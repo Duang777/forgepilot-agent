@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -208,7 +208,7 @@ def test_provider_manager_camel_case_methods(monkeypatch: pytest.MonkeyPatch) ->
 def test_preview_manager_returns_existing_running_instance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     async def _run() -> None:
         manager = PreviewManager()
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         manager._instances["task-1"] = PreviewInstance(
             id="preview-task-1",
             task_id="task-1",
@@ -248,7 +248,7 @@ def test_preview_manager_status_for_unknown_task_is_stopped() -> None:
 def test_preview_manager_camel_case_methods(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     async def _run() -> None:
         manager = PreviewManager()
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         manager._instances["task-2"] = PreviewInstance(
             id="preview-task-2",
             task_id="task-2",
