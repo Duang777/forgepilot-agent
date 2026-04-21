@@ -8,10 +8,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-try:
-    from resolve_frontend_shell import resolve_frontend_shell
-except ImportError:  # pragma: no cover - fallback when executed as module
-    from scripts.resolve_frontend_shell import resolve_frontend_shell
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.resolve_frontend_shell import resolve_frontend_shell
 
 
 def _default_target_triple() -> str:
@@ -140,4 +141,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

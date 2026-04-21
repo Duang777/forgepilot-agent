@@ -10,72 +10,23 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\\..")).Path
-$resolveScript = Join-Path $repoRoot "scripts/resolve_frontend_shell.py"
-$frontendShellPath = if ($FrontendShellDir) {
-  Join-Path $repoRoot $FrontendShellDir
-} else {
-  (python $resolveScript --repo-root $repoRoot).Trim()
+$entry = Join-Path $repoRoot "scripts/dev.py"
+$args = @(
+  $entry,
+  "desktop",
+  "--api-host", $ApiHost,
+  "--api-port", "$ApiPort"
+)
+if ($FrontendShellDir) {
+  $args += @("--frontend-shell-dir", $FrontendShellDir)
 }
-$apiUrl = "http://${ApiHost}:${ApiPort}"
-
-if (-not (Test-Path $frontendShellPath)) {
-  throw "Frontend shell path not found: $frontendShellPath"
+if (-not $RunSmokeCheck) {
+  $args += "--no-smoke-check"
 }
-
-Write-Host "[ForgePilot] Starting Python API on $apiUrl ..."
-$apiProc = Start-Process -FilePath "python" `
-  -ArgumentList "-m", "uvicorn", "forgepilot_api.app:app", "--host", $ApiHost, "--port", "$ApiPort" `
-  -WorkingDirectory $repoRoot `
-  -PassThru
-
-try {
-  $ready = $false
-  for ($i = 0; $i -lt 40; $i++) {
-    Start-Sleep -Milliseconds 500
-    try {
-      $resp = Invoke-WebRequest -UseBasicParsing "$apiUrl/health" -TimeoutSec 2
-      if ($resp.StatusCode -eq 200) {
-        $ready = $true
-        break
-      }
-    } catch {
-      # keep waiting
-    }
-  }
-
-  if (-not $ready) {
-    throw "API health check failed: $apiUrl/health"
-  }
-
-  if ($RunSmokeCheck) {
-    Write-Host "[ForgePilot] Running API smoke check ..."
-    $smokeArgs = @(
-      "scripts/smoke_api_chain.py",
-      "--base-url",
-      $apiUrl,
-      "--timeout-sec",
-      "120",
-      "--require-plan"
-    )
-    if ($RequireModel) {
-      $smokeArgs += "--require-model"
-    }
-    python @smokeArgs
-  }
-
-  Write-Host "[ForgePilot] API is healthy. Launching Tauri dev ..."
-  $env:VITE_API_BASE_URL = $apiUrl
-  Push-Location $frontendShellPath
-  try {
-    pnpm tauri dev
-  } finally {
-    Pop-Location
-  }
-} finally {
-  if ($StopApiOnExit -and $apiProc -and -not $apiProc.HasExited) {
-    Write-Host "[ForgePilot] Stopping Python API (PID $($apiProc.Id)) ..."
-    Stop-Process -Id $apiProc.Id -Force -ErrorAction SilentlyContinue
-  } elseif (-not $StopApiOnExit -and $apiProc -and -not $apiProc.HasExited) {
-    Write-Host "[ForgePilot] Keeping Python API running on $apiUrl (PID $($apiProc.Id))."
-  }
+if (-not $RequireModel) {
+  $args += "--no-require-model"
 }
+if ($StopApiOnExit) {
+  $args += "--stop-api-on-exit"
+}
+python @args

@@ -79,34 +79,71 @@ flowchart LR
 <a id="quickstart"></a>
 ## 快速开始
 
-### 1. 安装依赖
+前置要求：已安装 `Python 3.12+`、`Node.js`（含 `pnpm`）与 `Rust`（仅桌面/Tauri相关流程需要）。安装方式不限。
+
+### 1. 运行时与隔离缓存（推荐）
 
 ```bash
-python -m venv .venv
-. .venv/Scripts/activate
-pip install -e ".[dev]"
+# Keep all caches and virtual env inside repository.
+export UV_CACHE_DIR="$PWD/.cache/uv"
+export UV_PYTHON_INSTALL_DIR="$PWD/.cache/uv/python"
+export UV_PROJECT_ENVIRONMENT="$PWD/.venv"
+export PNPM_STORE_DIR="$PWD/.cache/pnpm-store"
 ```
 
-### 2. 启动 API
-
-```bash
-uvicorn forgepilot_api.app:app --host 127.0.0.1 --port 2026 --reload
-```
-
-### 3. 使用统一脚本（推荐）
+Windows PowerShell:
 
 ```powershell
-# API only
-.\scripts\dev.ps1 -Task api -Port 2026
+$env:UV_CACHE_DIR = "$PWD/.cache/uv"
+$env:UV_PYTHON_INSTALL_DIR = "$PWD/.cache/uv/python"
+$env:UV_PROJECT_ENVIRONMENT = "$PWD/.venv"
+$env:PNPM_STORE_DIR = "$PWD/.cache/pnpm-store"
+```
 
+### 2. 安装依赖
+
+```bash
+uv sync --extra dev
+```
+
+### 3. 启动 API
+
+macOS / Linux:
+
+```bash
+uv run python scripts/dev.py api --host 127.0.0.1 --port 2026
+```
+
+Windows PowerShell:
+
+```powershell
+uv run python scripts/dev.py api --host 127.0.0.1 --port 2026
+# compatible wrapper
+.\scripts\dev.ps1 -Task api -Port 2026
+```
+
+### 4. 开发常用命令（跨平台主入口）
+
+```bash
 # API + Tauri Desktop
-.\scripts\dev.ps1 -Task desktop
+uv run python scripts/dev.py desktop --api-host 127.0.0.1 --api-port 2026
+
+# Smoke chain
+uv run python scripts/dev.py smoke --base-url http://127.0.0.1:2026 --require-plan
 
 # Quality gate
+uv run python scripts/dev.py verify
+```
+
+Windows compatibility wrappers:
+
+```powershell
+.\scripts\dev.ps1 -Task desktop
+.\scripts\dev.ps1 -Task smoke -NoRequireModel
 .\scripts\dev.ps1 -Task verify
 ```
 
-### 4. 健康检查
+### 5. 健康检查
 
 - `http://127.0.0.1:2026/health`
 - `http://127.0.0.1:2026/metrics`（当 `FORGEPILOT_EXPOSE_METRICS=true`）
@@ -329,7 +366,8 @@ FORGEPILOT_FILES_ACL_SUBJECTS=admin=*;operator=files.read,files.open,files.impor
 ## 贡献指南
 
 - 请先阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)
-- 提交前建议执行：`.\scripts\verify_local.ps1`
+- 提交前建议执行：`uv run python scripts/dev.py verify`
+- Windows 兼容入口：`.\scripts\verify_local.ps1`
 - PR 描述建议包含：变更说明、测试结果、兼容性影响
 
 ---

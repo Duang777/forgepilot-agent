@@ -8,24 +8,32 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$entry = Join-Path $repoRoot "scripts/dev.py"
 $requireModel = -not $NoRequireModel.IsPresent
 
 switch ($Task) {
   "api" {
-    & (Join-Path $repoRoot "scripts/dev/api.ps1") -Port $Port
+    python $entry api --host $ApiHost --port $Port
   }
   "desktop" {
-    & (Join-Path $repoRoot "scripts/dev/desktop.ps1") `
-      -ApiHost $ApiHost `
-      -ApiPort $Port `
-      -RequireModel $requireModel
+    $desktopArgs = @(
+      $entry,
+      "desktop",
+      "--api-host", $ApiHost,
+      "--api-port", "$Port"
+    )
+    if (-not $requireModel) {
+      $desktopArgs += "--no-require-model"
+    }
+    python @desktopArgs
   }
   "verify" {
-    & (Join-Path $repoRoot "scripts/verify_local.ps1")
+    python $entry verify
   }
   "smoke" {
     $smokeArgs = @(
-      (Join-Path $repoRoot "scripts/smoke_api_chain.py"),
+      $entry,
+      "smoke",
       "--base-url",
       ("http://{0}:{1}" -f $ApiHost, $Port),
       "--require-plan"

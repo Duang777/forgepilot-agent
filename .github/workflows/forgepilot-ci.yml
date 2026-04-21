@@ -17,18 +17,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.7"
+          enable-cache: true
 
       - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
+        run: uv sync --extra dev
 
       - name: Ruff Lint
-        run: python -m ruff check .
+        run: uv run python -m ruff check .
+
+      - name: Mypy Typecheck
+        run: uv run python -m mypy scripts/dev.py scripts/build_python_sidecar.py scripts/write_sidecar_checksums.py scripts/resolve_frontend_shell.py
 
       - name: Baseline Parity Check
-        run: python scripts/generate_parity_report.py --repo-root . --output docs/parity_report.md --strict
+        run: uv run python scripts/dev.py parity --strict
 
   python-tests:
     name: Python Tests
@@ -42,15 +47,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.7"
+          enable-cache: true
 
       - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
+        run: uv sync --extra dev
 
       - name: Run Pytest
-        run: python -m pytest -q
+        run: uv run python -m pytest -q
 
   tauri-cargo-check:
     name: Tauri Cargo Check
@@ -67,11 +74,19 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.7"
+          enable-cache: true
+
+      - name: Install Dependencies
+        run: uv sync --extra dev
 
       - name: Detect Frontend Shell
         shell: bash
         run: |
-          rel="$(python scripts/resolve_frontend_shell.py --repo-root . --relative)"
+          rel="$(uv run python scripts/resolve_frontend_shell.py --repo-root . --relative)"
           echo "FRONTEND_SHELL_REL=$rel" >> "$GITHUB_ENV"
 
       - name: Cargo Check
@@ -99,27 +114,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.7"
+          enable-cache: true
 
       - name: Detect Frontend Shell
         shell: bash
         run: |
-          rel="$(python scripts/resolve_frontend_shell.py --repo-root . --relative)"
+          rel="$(uv run python scripts/resolve_frontend_shell.py --repo-root . --relative)"
           echo "FRONTEND_SHELL_REL=$rel" >> "$GITHUB_ENV"
 
       - name: Install Build Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .
-          python -m pip install pyinstaller
+        run: uv sync
 
       - name: Build Python Sidecar
-        run: |
-          python scripts/build_python_sidecar.py --repo-root . --binary-name forgepilot-agent-api
-
-      - name: Generate SHA256
-        run: |
-          python scripts/write_sidecar_checksums.py --repo-root . --pattern "forgepilot-agent-api-*" --output .build/sidecar-sha256.txt
+        run: uv run --with pyinstaller python scripts/dev.py sidecar --binary-name forgepilot-agent-api --checksum-output .build/sidecar-sha256.txt
 
       - name: Upload Sidecar Artifact
         uses: actions/upload-artifact@v4
