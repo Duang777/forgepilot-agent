@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from pathlib import PureWindowsPath
 from typing import Any
 
 from fastapi import APIRouter
@@ -36,6 +37,7 @@ _task_tool_use_context: dict[str, dict[str, dict[str, Any]]] = {}
 _ABS_WINDOWS_PATH_RE = re.compile(r"([A-Za-z]:\\[^\r\n`\"]+\.[A-Za-z0-9]{1,12})")
 _ABS_POSIX_PATH_RE = re.compile(r"(/[^ \r\n`\"']+\.[A-Za-z0-9]{1,12})")
 _WRITE_OUTPUT_PATH_RE = re.compile(r"File (?:written|edited):\s*(.+?)(?:\s*\(|$)", re.IGNORECASE)
+_WINDOWS_ABS_PREFIX_RE = re.compile(r"^[A-Za-z]:[\\/]")
 _KNOWN_FILE_EXTS = {
     "html",
     "htm",
@@ -94,6 +96,12 @@ def _normalize_abs_path(raw: str) -> str | None:
     candidate = _clean_path_token(raw)
     if not candidate:
         return None
+    if _WINDOWS_ABS_PREFIX_RE.match(candidate):
+        win_path = str(PureWindowsPath(candidate))
+        suffix = PureWindowsPath(win_path).suffix.lower().lstrip(".")
+        if suffix and suffix in _KNOWN_FILE_EXTS:
+            return win_path
+        return win_path if suffix else None
     try:
         path = Path(candidate).expanduser()
     except Exception:
@@ -138,6 +146,12 @@ def _extract_paths_from_tool_context(tool_name: str, tool_input: dict[str, Any],
     return deduped
 
 
+def _basename_for_any_path(path: str) -> str:
+    if _WINDOWS_ABS_PREFIX_RE.match(path):
+        return PureWindowsPath(path).name or path
+    return Path(path).name or path
+
+
 async def _record_file_artifacts_from_tool_result(task_id: str, event: dict[str, Any]) -> None:
     if event.get("isError"):
         return
@@ -156,7 +170,7 @@ async def _record_file_artifacts_from_tool_result(task_id: str, event: dict[str,
     paths = _extract_paths_from_tool_context(tool_name, tool_input, tool_output)
 
     for path in paths:
-        name = Path(path).name or path
+        name = _basename_for_any_path(path)
         await repo_upsert_file_by_path(
             task_id=task_id,
             path=path,
@@ -378,4 +392,3 @@ async def get_plan_by_id(plan_id: str) -> dict:
     if not plan:
         return JSONResponse({"error": "Plan not found"}, status_code=404)
     return plan
-

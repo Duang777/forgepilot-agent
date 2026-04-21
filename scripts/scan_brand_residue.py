@@ -54,6 +54,7 @@ ALLOWLIST: dict[str, set[str]] = {
         "scripts/clean_stale_artifacts.ps1",
         "scripts/scan_brand_residue.py",
         "docs/0407.md",
+        "tests/unit/test_upstream_workany_api_parity.py",
     }
 }
 
@@ -195,4 +196,3 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         raise SystemExit(130)
-

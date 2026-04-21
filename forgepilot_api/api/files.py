@@ -160,20 +160,34 @@ def _authorize_files_scope(request: Request, required_scope: str) -> JSONRespons
 
 def _temp_dir() -> Path:
     if os.name == "nt":
-        return Path(os.getenv("TEMP") or os.getenv("TMP") or r"C:\Windows\Temp")
-    return Path("/tmp")
+        return Path(os.getenv("TEMP") or os.getenv("TMP") or tempfile.gettempdir() or r"C:\Windows\Temp")
+    return Path(tempfile.gettempdir() or "/tmp")
 
 
 def _normalize(path: Path) -> str:
-    text = str(path.resolve())
+    text = str(path.expanduser().resolve(strict=False))
     return text.lower() if os.name == "nt" else text
 
 
 def _is_allowed_path(path: Path) -> bool:
+    def _is_within(candidate: str, root: str) -> bool:
+        if candidate == root:
+            return True
+        prefix = root if root.endswith(os.sep) else f"{root}{os.sep}"
+        return candidate.startswith(prefix)
+
     home = Path(get_home_dir()).expanduser()
-    temp = _temp_dir()
+    temp_candidates = {_temp_dir()}
+    if os.name != "nt":
+        temp_candidates.update({Path("/tmp"), Path("/private/tmp"), Path("/var/tmp")})
     normalized = _normalize(path.expanduser())
-    return normalized.startswith(_normalize(home)) or normalized.startswith(_normalize(temp))
+    if _is_within(normalized, _normalize(home)):
+        return True
+    for temp in temp_candidates:
+        normalized_temp = _normalize(temp)
+        if _is_within(normalized, normalized_temp):
+            return True
+    return False
 
 
 def _expand_path(raw: str) -> Path:
@@ -412,6 +426,8 @@ async def stat(request: Request, body: dict) -> dict:
         if not raw:
             return JSONResponse({"error": "Path is required"}, status_code=400)
         target = _expand_path(str(raw))
+        if not _is_allowed_path(target):
+            return JSONResponse({"error": "Access denied"}, status_code=403)
         try:
             info = target.stat()
             return {
@@ -687,4 +703,3 @@ async def get_files_by_task(request: Request, task_id: str) -> dict:
         return denied
     files = await list_files_by_task(task_id)
     return {"files": files}
-
