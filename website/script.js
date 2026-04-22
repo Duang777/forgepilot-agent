@@ -9,11 +9,11 @@
       linux: [/linux/i, /appimage/i, /x86_64/i, /\.AppImage$/i, /\.deb$/i, /\.rpm$/i],
     };
 
-    const rules = byPlatform[platform] || [];
     if (!Array.isArray(assets) || assets.length === 0) {
       return null;
     }
 
+    const rules = byPlatform[platform] || [];
     for (const asset of assets) {
       const name = String(asset.name || "");
       if (rules.some((rule) => rule.test(name))) {
@@ -32,37 +32,23 @@
     const targets = document.getElementById("build-targets");
 
     if (!payload) {
-      if (tip) {
-        tip.textContent = "未获取到 latest release，已回退到 Releases 页面。";
-      }
-      if (version) {
-        version.textContent = "no release";
-      }
-      if (status) {
-        status.textContent = "pending";
-      }
-      if (targets) {
-        targets.textContent = "Pending / Pending / Pending";
-      }
+      if (tip) tip.textContent = "未获取到 latest release，已回退到 Releases 页面。";
+      if (version) version.textContent = "no release";
+      if (status) status.textContent = "pending";
+      if (targets) targets.textContent = "Pending / Pending / Pending";
 
       links.forEach((link) => {
         link.href = RELEASES_URL;
         link.textContent = "打开 Releases";
       });
-
       return;
     }
 
     const assets = Array.isArray(payload.assets) ? payload.assets : [];
-    if (version) {
-      version.textContent = payload.tag_name || "latest";
-    }
-    if (status) {
-      status.textContent = "published";
-    }
-    if (tip) {
-      tip.textContent = `已同步 ${payload.tag_name || "latest"}，共 ${assets.length} 个资产文件。`;
-    }
+
+    if (version) version.textContent = payload.tag_name || "latest";
+    if (status) status.textContent = "published";
+    if (tip) tip.textContent = `已同步 ${payload.tag_name || "latest"}，共 ${assets.length} 个资产文件。`;
 
     let resolvedCount = 0;
 
@@ -76,7 +62,6 @@
         link.href = asset.browser_download_url || RELEASES_URL;
         link.textContent = `下载 ${asset.name}`;
         resolvedCount += 1;
-
         if (copyBtn) {
           const digest = String(asset.digest || "").trim();
           copyBtn.setAttribute("data-copy", digest || `no-digest:${asset.name}`);
@@ -84,16 +69,11 @@
       } else {
         link.href = RELEASES_URL;
         link.textContent = "打开 Releases";
-
-        if (copyBtn) {
-          copyBtn.setAttribute("data-copy", "该资产未提供校验码");
-        }
+        if (copyBtn) copyBtn.setAttribute("data-copy", "该资产未提供校验码");
       }
     });
 
-    if (targets) {
-      targets.textContent = `${resolvedCount}/3 resolved`;
-    }
+    if (targets) targets.textContent = `${resolvedCount}/3 resolved`;
   }
 
   async function loadLatestRelease() {
@@ -117,21 +97,19 @@
   }
 
   function bindCopyButtons() {
-    const copyButtons = document.querySelectorAll(".copy-btn");
+    const buttons = document.querySelectorAll(".copy-btn");
 
-    copyButtons.forEach((button) => {
+    buttons.forEach((button) => {
       button.addEventListener("click", async () => {
         const text = button.getAttribute("data-copy") || "";
-        if (!text) {
-          return;
-        }
+        if (!text) return;
 
         try {
           await navigator.clipboard.writeText(text);
-          const original = button.textContent;
+          const previous = button.textContent;
           button.textContent = "已复制";
           setTimeout(() => {
-            button.textContent = original;
+            button.textContent = previous;
           }, 1200);
         } catch {
           button.textContent = "复制失败";
@@ -145,9 +123,7 @@
 
   function bindReveal() {
     const items = document.querySelectorAll(".reveal");
-    if (!items.length) {
-      return;
-    }
+    if (!items.length) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -158,17 +134,17 @@
           }
         });
       },
-      { threshold: 0.2 }
+      {
+        threshold: 0.2,
+      }
     );
 
     items.forEach((item) => observer.observe(item));
   }
 
   function setCurrentYear() {
-    const year = document.getElementById("current-year");
-    if (year) {
-      year.textContent = String(new Date().getFullYear());
-    }
+    const el = document.getElementById("current-year");
+    if (el) el.textContent = String(new Date().getFullYear());
   }
 
   bindCopyButtons();
