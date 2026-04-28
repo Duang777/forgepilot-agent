@@ -23,6 +23,11 @@ def main() -> int:
         action="store_true",
         help="Return non-zero if full baseline parity is not reached.",
     )
+    parser.add_argument(
+        "--strict-semantic",
+        action="store_true",
+        help="Return non-zero if semantic harness baseline is not reached.",
+    )
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
@@ -36,6 +41,9 @@ def main() -> int:
     if args.strict and not summary.is_full_parity:
         print("strict mode failed: baseline parity is PARTIAL")
         return 2
+    if args.strict_semantic and not summary.is_semantic_baseline:
+        print("strict semantic mode failed: semantic baseline is PARTIAL")
+        return 3
     return 0
 
 

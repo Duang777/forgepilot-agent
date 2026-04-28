@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Awaitable, Callable
 
 from forgepilot_sdk.hooks import HookRegistry
+from forgepilot_sdk.policy import PolicyDecision, evaluate_tool_policy
 from forgepilot_sdk.providers.base import LLMProvider, ProviderResponse, ProviderToolCall
 from forgepilot_sdk.types import ConversationMessage, SDKMessage, ThinkingConfig, ToolContext, ToolDefinition
 from forgepilot_sdk.utils.compact import (
@@ -16,8 +17,8 @@ from forgepilot_sdk.utils.compact import (
     compact_conversation,
     create_auto_compact_state,
     micro_compact_messages,
-    should_auto_compact,
 )
+from forgepilot_sdk.utils.context_orchestrator import ContextOrchestrator
 from forgepilot_sdk.utils.context import get_system_context, get_user_context
 from forgepilot_sdk.utils.messages import normalize_messages_for_api
 from forgepilot_sdk.utils.retry import is_prompt_too_long_error, with_retry
@@ -142,6 +143,7 @@ class QueryEngine:
         self.agents = agents or {}
         self.hook_registry = hook_registry
         self.compact_state: AutoCompactState = create_auto_compact_state()
+        self.context_orchestrator = ContextOrchestrator(self.provider, self.model)
 
         self.tool_context = ToolContext(
             cwd=cwd,
@@ -366,6 +368,17 @@ class QueryEngine:
             return False
         return not tool.is_read_only()
 
+    def _policy_denied_result(self, call: ProviderToolCall, reason: str, risk_level: str) -> dict[str, Any]:
+        return {
+            "type": "tool_result",
+            "result": {
+                "tool_use_id": call.id,
+                "tool_name": call.name,
+                "output": f"__POLICY_DENIED__|risk={risk_level}|{reason}",
+                "is_error": True,
+            },
+        }
+
     async def submit_message(self, prompt: str | list[dict[str, Any]]) -> AsyncGenerator[SDKMessage, None]:
         await self._execute_hooks("SessionStart")
         user_submit_hooks = await self._execute_hooks("UserPromptSubmit", {"toolInput": prompt})
@@ -408,28 +421,27 @@ class QueryEngine:
                 budget_exceeded = True
                 break
 
-            if should_auto_compact(self.messages, self.active_model, self.compact_state):
-                await self._execute_hooks("PreCompact")
-                compact_result = await compact_conversation(
-                    self.provider,
-                    self.active_model,
-                    self.messages,
-                    self.compact_state,
-                )
-                compacted_messages = compact_result.get("compacted_messages")
-                new_state = compact_result.get("state")
-                summary_text = str(compact_result.get("summary") or "")
-                if isinstance(compacted_messages, list):
-                    self.messages = [m for m in compacted_messages if isinstance(m, ConversationMessage)]
-                if isinstance(new_state, AutoCompactState):
-                    self.compact_state = new_state
-                if summary_text:
-                    yield {
-                        "type": "system",
-                        "subtype": "compact_boundary",
-                        "summary": summary_text,
-                    }
-                await self._execute_hooks("PostCompact")
+            await self._execute_hooks("PreCompact")
+            orchestrated = await self.context_orchestrator.apply_before_model_call(
+                messages=self.messages,
+                active_model=self.active_model,
+                compact_state=self.compact_state,
+                turn_count=self.turn_count,
+            )
+            compacted_messages = orchestrated.get("messages")
+            new_state = orchestrated.get("compact_state")
+            summary_text = str(orchestrated.get("summary") or "")
+            if isinstance(compacted_messages, list):
+                self.messages = [m for m in compacted_messages if isinstance(m, ConversationMessage)]
+            if isinstance(new_state, AutoCompactState):
+                self.compact_state = new_state
+            if summary_text:
+                yield {
+                    "type": "system",
+                    "subtype": "compact_boundary",
+                    "summary": summary_text,
+                }
+            await self._execute_hooks("PostCompact")
 
             self.turn_count += 1
             turns_remaining -= 1
@@ -456,11 +468,15 @@ class QueryEngine:
                     turns_remaining += 1
                     continue
                 if is_prompt_too_long_error(exc) and not self.compact_state.compacted:
+                    cfg = self.context_orchestrator.window_config
                     compact_result = await compact_conversation(
                         self.provider,
                         self.active_model,
                         self.messages,
                         self.compact_state,
+                        keep_recent_turns=cfg.keep_recent_turns,
+                        summarize_earliest_turns=cfg.summarize_earliest_turns,
+                        summarizer_model=cfg.summarizer_model,
                     )
                     compacted_messages = compact_result.get("compacted_messages")
                     new_state = compact_result.get("state")
@@ -550,25 +566,105 @@ class QueryEngine:
             max_output_recovery_attempts = 0
 
             tool_results: list[dict[str, Any]] = []
-            if self.can_use_tool:
-                for call in tool_calls:
-                    tool = self._tool_map.get(call.name)
-                    if not tool:
+            pending_calls: list[tuple[ProviderToolCall, ToolDefinition | None, PolicyDecision]] = []
+            tool_context = ToolContext(
+                cwd=self.cwd,
+                abort_signal=self.abort_signal,
+                provider=self.provider,
+                model=self.model,
+                api_type=getattr(self.provider, "api_type", None),
+                state=self.tool_context.state,
+            )
+            for raw_call in tool_calls:
+                tool = self._tool_map.get(raw_call.name)
+                decision = evaluate_tool_policy(raw_call.name, raw_call.input, self.cwd)
+                if decision.action == "deny":
+                    tool_results.append(self._policy_denied_result(raw_call, decision.reason, decision.risk_level))
+                    continue
+                normalized_call = ProviderToolCall(
+                    id=raw_call.id,
+                    name=raw_call.name,
+                    input=decision.normalized_input,
+                )
+                pending_calls.append((normalized_call, tool, decision))
+
+            for call, tool, policy_decision in pending_calls:
+                requires_policy_permission = policy_decision.action == "require_permission"
+                requires_tool_permission = bool(tool and self._requires_permission(tool))
+                needs_permission = requires_policy_permission or requires_tool_permission
+
+                if needs_permission:
+                    if self.wait_for_permission_decision is None:
+                        reason = (
+                            f"Policy requires approval: {policy_decision.reason}"
+                            if requires_policy_permission
+                            else f'Permission denied for tool "{call.name}"'
+                        )
                         tool_results.append(
-                            await self._execute_single_tool(
-                                call,
-                                None,
-                                ToolContext(
-                                    cwd=self.cwd,
-                                    abort_signal=self.abort_signal,
-                                    provider=self.provider,
-                                    model=self.model,
-                                    api_type=getattr(self.provider, "api_type", None),
-                                    state=self.tool_context.state,
-                                ),
-                            )
+                            {
+                                "type": "tool_result",
+                                "result": {
+                                    "tool_use_id": call.id,
+                                    "tool_name": call.name,
+                                    "output": reason,
+                                    "is_error": True,
+                                },
+                            }
                         )
                         continue
+
+                    permission_id = str(uuid.uuid4())
+                    permission_payload = {
+                        "id": permission_id,
+                        "toolUseId": call.id,
+                        "toolName": call.name,
+                        "input": call.input,
+                        "message": (
+                            f"Allow tool '{call.name}'? (risk={policy_decision.risk_level}, reason={policy_decision.reason})"
+                            if requires_policy_permission
+                            else f"Allow tool '{call.name}'?"
+                        ),
+                    }
+                    await self._execute_hooks("PermissionRequest", permission_payload)
+                    if self.on_permission_request is not None:
+                        try:
+                            await self.on_permission_request(permission_payload)
+                        except Exception:
+                            pass
+                    yield {
+                        "type": "system",
+                        "subtype": "permission_request",
+                        "session_id": self.session_id,
+                        "permission": permission_payload,
+                    }
+                    approved = False
+                    try:
+                        approved = await asyncio.wait_for(self.wait_for_permission_decision(permission_id), timeout=600)
+                    except Exception:
+                        approved = False
+                    if not approved:
+                        await self._execute_hooks(
+                            "PermissionDenied",
+                            {"toolName": call.name, "toolInput": call.input, "toolUseId": call.id},
+                        )
+                        tool_results.append(
+                            {
+                                "type": "tool_result",
+                                "result": {
+                                    "tool_use_id": call.id,
+                                    "tool_name": call.name,
+                                    "output": "Permission denied by user",
+                                    "is_error": True,
+                                },
+                            }
+                        )
+                        continue
+
+                if tool is None:
+                    tool_results.append(await self._execute_single_tool(call, None, tool_context))
+                    continue
+
+                if self.can_use_tool:
                     try:
                         permission = await self.can_use_tool(tool, call.input)
                     except Exception as exc:
@@ -604,82 +700,8 @@ class QueryEngine:
                         updated_input = permission.get("updated_input")
                     if updated_input is not None:
                         call = ProviderToolCall(id=call.id, name=call.name, input=updated_input)
-                    tool_results.append(
-                        await self._execute_single_tool(
-                            call,
-                            tool,
-                            ToolContext(
-                                cwd=self.cwd,
-                                abort_signal=self.abort_signal,
-                                provider=self.provider,
-                                model=self.model,
-                                api_type=getattr(self.provider, "api_type", None),
-                                state=self.tool_context.state,
-                            ),
-                        )
-                    )
-            elif self.wait_for_permission_decision is not None:
-                for call in tool_calls:
-                    tool = self._tool_map.get(call.name)
-                    if tool and self._requires_permission(tool):
-                        permission_id = str(uuid.uuid4())
-                        permission_payload = {
-                            "id": permission_id,
-                            "toolUseId": call.id,
-                            "toolName": call.name,
-                            "input": call.input,
-                            "message": f"Allow tool '{call.name}'?",
-                        }
-                        await self._execute_hooks("PermissionRequest", permission_payload)
-                        if self.on_permission_request is not None:
-                            try:
-                                await self.on_permission_request(permission_payload)
-                            except Exception:
-                                pass
-                        yield {
-                            "type": "system",
-                            "subtype": "permission_request",
-                            "session_id": self.session_id,
-                            "permission": permission_payload,
-                        }
-                        approved = False
-                        try:
-                            approved = await asyncio.wait_for(self.wait_for_permission_decision(permission_id), timeout=600)
-                        except Exception:
-                            approved = False
-                        if not approved:
-                            await self._execute_hooks(
-                                "PermissionDenied",
-                                {"toolName": call.name, "toolInput": call.input, "toolUseId": call.id},
-                            )
-                            tool_results.append(
-                                {
-                                    "type": "tool_result",
-                                    "result": {
-                                        "tool_use_id": call.id,
-                                        "tool_name": call.name,
-                                        "output": "Permission denied by user",
-                                        "is_error": True,
-                                    },
-                                }
-                            )
-                            continue
-                    tool_results.append(
-                        await self._execute_single_tool(
-                            call,
-                            tool,
-                            ToolContext(
-                                cwd=self.cwd,
-                                abort_signal=self.abort_signal,
-                                provider=self.provider,
-                                model=self.model,
-                                api_type=getattr(self.provider, "api_type", None),
-                                state=self.tool_context.state,
-                            ),
-                        )
-                    )
-            else:
-                tool_results = await self._execute_tools(tool_calls)
+
+                tool_results.append(await self._execute_single_tool(call, tool, tool_context))
 
             tool_result_blocks: list[dict[str, Any]] = []
             for result in tool_results:
@@ -760,3 +782,9 @@ class QueryEngine:
 
     def getCost(self) -> float:
         return self.get_cost()
+
+    def get_context_metadata(self) -> dict[str, Any]:
+        return self.context_orchestrator.export_metadata()
+
+    def getContextMetadata(self) -> dict[str, Any]:
+        return self.get_context_metadata()

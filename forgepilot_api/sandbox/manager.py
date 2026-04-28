@@ -15,6 +15,7 @@ SANDBOX_IMAGES = {
 }
 
 _POOL_TRUTHY = {"1", "true", "yes", "on"}
+_POOL_FALSY = {"0", "false", "no", "off"}
 _provider_pools: dict[str, SandboxPool] = {}
 
 
@@ -31,6 +32,29 @@ def _pool_enabled() -> bool:
     return raw in _POOL_TRUTHY
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    lowered = raw.strip().lower()
+    if lowered in _POOL_TRUTHY:
+        return True
+    if lowered in _POOL_FALSY:
+        return False
+    return default
+
+
+def _is_production_mode() -> bool:
+    node_env = os.getenv("NODE_ENV", "").strip().lower()
+    files_mode = os.getenv("FORGEPILOT_FILES_MODE", "").strip().lower()
+    return node_env == "production" or files_mode in {"prod", "production"}
+
+
+def _allow_native_fallback() -> bool:
+    # Secure-by-default in prod; compatible-by-default in dev/test.
+    return _env_bool("FORGEPILOT_SANDBOX_ALLOW_NATIVE_FALLBACK", not _is_production_mode())
+
+
 def _pool_max_size() -> int:
     raw = os.getenv("FORGEPILOT_SANDBOX_POOL_MAX_SIZE", "5").strip()
     try:
@@ -41,9 +65,9 @@ def _pool_max_size() -> int:
 
 async def _select_provider_type_with_fallback(preferred_provider: SandboxProviderType | None = None) -> tuple[str, bool, str | None]:
     registry = get_sandbox_registry()
+    preferred_key = str(preferred_provider) if preferred_provider is not None else None
 
-    if preferred_provider:
-        preferred_key = str(preferred_provider)
+    if preferred_key:
         try:
             provider = await registry.get_instance(preferred_key)
             if await provider.is_available():
@@ -52,14 +76,24 @@ async def _select_provider_type_with_fallback(preferred_provider: SandboxProvide
             pass
 
     # Priority: codex -> claude -> native
+    native_fallback_blocked = False
     for name in ["codex", "claude", "native"]:
-        provider = await registry.get_instance(name)
-        if await provider.is_available():
-            used_fallback = preferred_provider is not None and str(preferred_provider) != name
-            reason = None
-            if used_fallback:
-                reason = f"Preferred provider '{preferred_provider}' unavailable, fallback to '{name}'."
-            return name, used_fallback, reason
+        if name == "native" and preferred_key != "native" and not _allow_native_fallback():
+            native_fallback_blocked = True
+            continue
+        try:
+            provider = await registry.get_instance(name)
+            if await provider.is_available():
+                used_fallback = preferred_provider is not None and str(preferred_provider) != name
+                reason = None
+                if used_fallback:
+                    reason = f"Preferred provider '{preferred_provider}' unavailable, fallback to '{name}'."
+                return name, used_fallback, reason
+        except Exception:
+            continue
+
+    if native_fallback_blocked:
+        raise RuntimeError("No isolated sandbox provider available and native fallback is disabled by policy.")
 
     raise RuntimeError("No sandbox provider available")
 
@@ -189,4 +223,3 @@ async def stop_all_providers() -> None:
         await pool.stop_all()
     _provider_pools.clear()
     await shutdown_global_sandbox_pool()
-

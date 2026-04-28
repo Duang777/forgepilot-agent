@@ -189,7 +189,13 @@ def _resolve_path(cwd: Path, value: str) -> Path:
     path = Path(value).expanduser()
     if not path.is_absolute():
         path = cwd / path
-    return path.resolve()
+    normalized = path.resolve()
+    root = cwd.resolve()
+    try:
+        normalized.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"Path escapes workspace boundary: {value}") from exc
+    return normalized
 
 
 def _now() -> str:
