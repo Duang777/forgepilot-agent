@@ -13,7 +13,13 @@ from forgepilot_sdk.engine import QueryEngine
 from forgepilot_sdk.hooks import HookDefinition, HookRegistry, create_hook_registry
 from forgepilot_sdk.mcp import close_all_connections, connect_mcp_server
 from forgepilot_sdk.sdk_mcp_server import McpSdkServerConfig, is_sdk_server_config
-from forgepilot_sdk.session import fork_session, list_sessions, load_session, save_session
+from forgepilot_sdk.session import (
+    fork_session,
+    list_sessions,
+    load_session,
+    save_session,
+    update_session_metadata,
+)
 from forgepilot_sdk.skills import init_bundled_skills, load_default_skill_registry, load_skill_registry_from_paths
 from forgepilot_sdk.tools import (
     assemble_tool_pool,
@@ -561,6 +567,13 @@ class Agent:
             return
         # Keep best-effort immediate save for compatibility with existing API behavior.
         save_session(self.sid, self.history, {"cwd": cwd, "model": opts.model or self.model_id})
+        try:
+            update_session_metadata(
+                self.sid,
+                {"contextCompaction": engine.get_context_metadata()},
+            )
+        except Exception:
+            pass
 
     async def prompt(self, prompt: str, overrides: AgentOptions | None = None) -> QueryResult:
         started = time.perf_counter()

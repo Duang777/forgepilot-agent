@@ -320,3 +320,34 @@ def test_run_agent_blocks_fake_file_success(monkeypatch) -> None:
     assert any(event.get("type") == "error" and event.get("message") == "__UNVERIFIED_FILE_OPERATION__" for event in events)
     assert any(event.get("type") == "result" and event.get("subtype") == "error" for event in events)
 
+
+def test_evaluate_semantic_rules_blocks_policy_execution_mismatch() -> None:
+    evidence = agent_service.ExecutionEvidence(
+        tool_use_by_id={"u-1": "Bash"},
+        tool_result_by_id={
+            "u-1": {
+                "name": "Bash",
+                "isError": True,
+                "output": "__POLICY_DENIED__|risk=high|High-risk command denied by policy",
+            }
+        },
+        observed_tool_names={"Bash"},
+        assistant_text_chunks=["任务已完成。"],
+        policy_denied_hits=["__POLICY_DENIED__|risk=high|High-risk command denied by policy"],
+    )
+
+    marker, message = agent_service._evaluate_semantic_rules(
+        prompt="Create index.html",
+        evidence=evidence,
+        language="en-US",
+    )
+    assert marker == "__POLICY_EXECUTION_MISMATCH__"
+    assert "policy-denied" in str(message).lower()
+
+
+def test_replay_trace_events_filters_non_dict_items() -> None:
+    replayed = agent_service.replay_trace_events({"events": [{"type": "tool_use"}, "x", 1, {"type": "result"}]})
+    assert replayed == [{"type": "tool_use"}, {"type": "result"}]
+
+    replayed_empty = agent_service.replay_trace_events({"events": "not-a-list"})
+    assert replayed_empty == []

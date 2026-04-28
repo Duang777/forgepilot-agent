@@ -23,6 +23,11 @@ from forgepilot_sdk.utils.context import (
     readProjectContextContent,
     read_project_context_content,
 )
+from forgepilot_sdk.utils.context_orchestrator import (
+    ContextOrchestrator,
+    ContextOrchestratorState,
+    ContextWindowConfig,
+)
 from forgepilot_sdk.utils.file_cache import (
     FileState,
     FileStateCache,
@@ -101,6 +106,9 @@ __all__ = [
     "getGitStatus",
     "readProjectContextContent",
     "discoverProjectContextFiles",
+    "ContextWindowConfig",
+    "ContextOrchestratorState",
+    "ContextOrchestrator",
     "FileState",
     "FileStateCache",
     "create_file_state_cache",

@@ -69,22 +69,27 @@ def _normalize_message(message: ConversationMessage | dict[str, Any]) -> dict[st
     return {"role": "user", "content": str(message)}
 
 
+def _deep_merge_dict(base: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in patch.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge_dict(dict(merged[key]), value)
+        else:
+            merged[key] = value
+    return merged
+
+
 def _default_metadata(session_id: str, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = metadata or {}
     created_at = str(payload.get("createdAt") or _utc_now_iso())
     updated_at = str(payload.get("updatedAt") or _utc_now_iso())
-    base: dict[str, Any] = {
-        "id": session_id,
-        "cwd": str(payload.get("cwd") or Path.cwd()),
-        "model": str(payload.get("model") or _default_model()),
-        "createdAt": created_at,
-        "updatedAt": updated_at,
-        "messageCount": 0,
-    }
-    if "summary" in payload:
-        base["summary"] = payload.get("summary")
-    if "tag" in payload:
-        base["tag"] = payload.get("tag")
+    base: dict[str, Any] = dict(payload)
+    base["id"] = session_id
+    base["cwd"] = str(payload.get("cwd") or Path.cwd())
+    base["model"] = str(payload.get("model") or _default_model())
+    base["createdAt"] = created_at
+    base["updatedAt"] = updated_at
+    base["messageCount"] = 0
     return base
 
 
@@ -473,6 +478,38 @@ def tag_session(
     save_session(session_id, data.get("messages", []), metadata, sessions_dir=sessions_dir)
 
 
+def update_session_metadata(
+    session_id: str,
+    patch: dict[str, Any],
+    *,
+    sessions_dir: str | Path | None = None,
+) -> bool:
+    if not isinstance(patch, dict) or not patch:
+        return False
+    with _session_write_lock(session_id, sessions_dir=sessions_dir):
+        data = _load_session_unlocked(
+            session_id,
+            sessions_dir=sessions_dir,
+            migrate_legacy=not _strict_session_parity(),
+            persist_repaired=False,
+            lock_held=True,
+        )
+        if not data:
+            return False
+        messages = data.get("messages")
+        if not isinstance(messages, list):
+            messages = []
+        metadata = data.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+        metadata = _deep_merge_dict(metadata, patch)
+        metadata["id"] = session_id
+        metadata["updatedAt"] = _utc_now_iso()
+        payload = _ensure_session_payload(session_id, messages, metadata)
+        _write_session_payload(session_id, payload, sessions_dir=sessions_dir)
+        return True
+
+
 def delete_session(session_id: str, *, sessions_dir: str | Path | None = None) -> bool:
     try:
         path = _session_path(session_id, sessions_dir=sessions_dir)
@@ -528,3 +565,11 @@ def renameSession(sessionId: str, title: str, options: dict[str, Any] | None = N
 def tagSession(sessionId: str, tag: str | None, options: dict[str, Any] | None = None) -> None:
     tag_session(sessionId, tag, options)
 
+
+def updateSessionMetadata(
+    sessionId: str,
+    patch: dict[str, Any],
+    *,
+    sessions_dir: str | Path | None = None,
+) -> bool:
+    return update_session_metadata(sessionId, patch, sessions_dir=sessions_dir)
