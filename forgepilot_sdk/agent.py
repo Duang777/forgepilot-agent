@@ -179,7 +179,12 @@ def _merge_options(base: AgentOptions, overrides: AgentOptions) -> AgentOptions:
 def _resolve_api_type(options: AgentOptions) -> str:
     if options.api_type:
         return options.api_type
-    env_api_type = (options.env or {}).get("CODEANY_API_TYPE") or os.getenv("CODEANY_API_TYPE")
+    env_api_type = (
+        (options.env or {}).get("DUANGCODE_API_TYPE")
+        or (options.env or {}).get("CODEANY_API_TYPE")
+        or os.getenv("DUANGCODE_API_TYPE")
+        or os.getenv("CODEANY_API_TYPE")
+    )
     if env_api_type in {"anthropic-messages", "openai-completions"}:
         return env_api_type
     model = (options.model or "").lower()
@@ -191,8 +196,12 @@ def _resolve_api_type(options: AgentOptions) -> str:
 def _pick_api_key(options: AgentOptions) -> str:
     return (
         options.api_key
+        or (options.env or {}).get("DUANGCODE_API_KEY")
+        or (options.env or {}).get("DUANGCODE_AUTH_TOKEN")
         or (options.env or {}).get("CODEANY_API_KEY")
         or (options.env or {}).get("CODEANY_AUTH_TOKEN")
+        or os.getenv("DUANGCODE_API_KEY")
+        or os.getenv("DUANGCODE_AUTH_TOKEN")
         or os.getenv("CODEANY_API_KEY")
         or os.getenv("CODEANY_AUTH_TOKEN")
         or ""
@@ -200,7 +209,13 @@ def _pick_api_key(options: AgentOptions) -> str:
 
 
 def _pick_base_url(options: AgentOptions) -> str | None:
-    return options.base_url or (options.env or {}).get("CODEANY_BASE_URL") or os.getenv("CODEANY_BASE_URL")
+    return (
+        options.base_url
+        or (options.env or {}).get("DUANGCODE_BASE_URL")
+        or (options.env or {}).get("CODEANY_BASE_URL")
+        or os.getenv("DUANGCODE_BASE_URL")
+        or os.getenv("CODEANY_BASE_URL")
+    )
 
 
 def _resolve_system_prompt_options(

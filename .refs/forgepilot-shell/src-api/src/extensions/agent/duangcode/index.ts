@@ -1,7 +1,7 @@
 /**
- * CodeAny Agent SDK Adapter
+ * DuangCode Agent SDK Adapter
  *
- * Implementation of the IAgent interface using @codeany/open-agent-sdk.
+ * Implementation of the IAgent interface using the bundled open-agent SDK.
  * Runs entirely in-process — no external CLI binary required.
  */
 
@@ -9,9 +9,7 @@ import { existsSync } from 'fs';
 import { mkdir, writeFile } from 'fs/promises';
 import { homedir, platform } from 'os';
 import { join } from 'path';
-import {
-  query,
-} from '@codeany/open-agent-sdk';
+import { query } from '@codeany/open-agent-sdk';
 import type { AgentOptions as SdkAgentOptions } from '@codeany/open-agent-sdk';
 
 import {
@@ -24,7 +22,7 @@ import {
   PLANNING_INSTRUCTION,
   type SandboxOptions,
 } from '@/core/agent/base';
-import { CODEANY_METADATA, defineAgentPlugin } from '@/core/agent/plugin';
+import { DUANGCODE_METADATA, defineAgentPlugin } from '@/core/agent/plugin';
 import type { AgentPlugin } from '@/core/agent/plugin';
 import type {
   AgentConfig,
@@ -46,7 +44,7 @@ import {
 import { loadMcpServers, type McpServerConfig } from '@/shared/mcp/loader';
 import { createLogger, LOG_FILE_PATH } from '@/shared/utils/logger';
 
-const logger = createLogger('CodeAnyAgent');
+const logger = createLogger('DuangCodeAgent');
 
 // Sandbox API URL
 const isDev = !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
@@ -147,9 +145,9 @@ async function saveImagesToDisk(
       const buffer = Buffer.from(base64Data, 'base64');
       await writeFile(filePath, buffer);
       savedPaths.push(filePath);
-      logger.info(`[CodeAny] Saved image to: ${filePath}`);
+      logger.info(`[DuangCode] Saved image to: ${filePath}`);
     } catch (error) {
-      logger.error(`[CodeAny] Failed to save image: ${error}`);
+      logger.error(`[DuangCode] Failed to save image: ${error}`);
     }
   }
 
@@ -176,15 +174,15 @@ const ALLOWED_TOOLS = [
 ];
 
 // ============================================================================
-// CodeAny Agent class
+// DuangCode Agent class
 // ============================================================================
 
-export class CodeAnyAgent extends BaseAgent {
-  readonly provider: AgentProvider = 'codeany';
+export class DuangCodeAgent extends BaseAgent {
+  readonly provider: AgentProvider = 'duangcode';
 
   constructor(config: AgentConfig) {
     super(config);
-    logger.info('[CodeAnyAgent] Created with config:', {
+    logger.info('[DuangCodeAgent] Created with config:', {
       provider: config.provider,
       hasApiKey: !!config.apiKey,
       baseUrl: config.baseUrl,
@@ -376,7 +374,7 @@ export class CodeAnyAgent extends BaseAgent {
       options?.cwd || this.config.workDir, prompt, options?.taskId
     );
     await ensureDir(sessionCwd);
-    logger.info(`[CodeAny ${session.id}] Working Directory: ${sessionCwd}`);
+    logger.info(`[DuangCode ${session.id}] Working Directory: ${sessionCwd}`);
 
     const sentTextHashes = new Set<string>();
     const sentToolIds = new Set<string>();
@@ -423,13 +421,13 @@ User's request (answer this AFTER reading the images):
     // Add MCP servers if any
     if (Object.keys(userMcpServers).length > 0) {
       sdkOpts.mcpServers = userMcpServers;
-      logger.info(`[CodeAny ${session.id}] MCP servers: ${Object.keys(userMcpServers).join(', ')}`);
+      logger.info(`[DuangCode ${session.id}] MCP servers: ${Object.keys(userMcpServers).join(', ')}`);
     }
 
-    logger.info(`[CodeAny ${session.id}] ========== AGENT START ==========`);
-    logger.info(`[CodeAny ${session.id}] Model: ${this.config.model || '(default)'}`);
-    logger.info(`[CodeAny ${session.id}] Custom API: ${this.isUsingCustomApi()}`);
-    logger.info(`[CodeAny ${session.id}] Prompt length: ${enhancedPrompt.length} chars`);
+    logger.info(`[DuangCode ${session.id}] ========== AGENT START ==========`);
+    logger.info(`[DuangCode ${session.id}] Model: ${this.config.model || '(default)'}`);
+    logger.info(`[DuangCode ${session.id}] Custom API: ${this.isUsingCustomApi()}`);
+    logger.info(`[DuangCode ${session.id}] Prompt length: ${enhancedPrompt.length} chars`);
 
     try {
       for await (const message of query({ prompt: enhancedPrompt, options: sdkOpts })) {
@@ -438,7 +436,7 @@ User's request (answer this AFTER reading the images):
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`[CodeAny ${session.id}] Error:`, { message: errorMessage });
+      logger.error(`[DuangCode ${session.id}] Error:`, { message: errorMessage });
 
       const noApiKeyConfigured = !this.config.apiKey;
       const usingCustomApi = this.isUsingCustomApi();
@@ -477,7 +475,7 @@ User's request (answer this AFTER reading the images):
       options?.cwd || this.config.workDir, prompt, options?.taskId
     );
     await ensureDir(sessionCwd);
-    logger.info(`[CodeAny ${session.id}] Planning started, cwd: ${sessionCwd}`);
+    logger.info(`[DuangCode ${session.id}] Planning started, cwd: ${sessionCwd}`);
 
     const workspaceInstruction = `\n## CRITICAL: Output Directory\n**ALL files must be saved to: ${sessionCwd}**\n`;
     const languageInstruction = buildLanguageInstruction(options?.language, prompt);
@@ -521,7 +519,7 @@ User's request (answer this AFTER reading the images):
         }
       }
     } catch (error) {
-      logger.error(`[CodeAny ${session.id}] Planning error:`, error);
+      logger.error(`[DuangCode ${session.id}] Planning error:`, error);
       yield { type: 'error', message: error instanceof Error ? error.message : String(error) };
     } finally {
       yield { type: 'done' };
@@ -546,7 +544,7 @@ User's request (answer this AFTER reading the images):
       options.cwd || this.config.workDir, options.originalPrompt, options.taskId
     );
     await ensureDir(sessionCwd);
-    logger.info(`[CodeAny ${session.id}] Executing plan: ${plan.id}, cwd: ${sessionCwd}`);
+    logger.info(`[DuangCode ${session.id}] Executing plan: ${plan.id}, cwd: ${sessionCwd}`);
 
     const sandboxOpts: SandboxOptions | undefined = options.sandbox?.enabled
       ? { enabled: true, image: options.sandbox.image, apiEndpoint: options.sandbox.apiEndpoint || SANDBOX_API_URL }
@@ -575,7 +573,7 @@ User's request (answer this AFTER reading the images):
         yield* this.processMessage(message, session.id, sentTextHashes, sentToolIds);
       }
     } catch (error) {
-      logger.error(`[CodeAny ${session.id}] Execution error:`, error);
+      logger.error(`[DuangCode ${session.id}] Execution error:`, error);
       yield { type: 'error', message: error instanceof Error ? error.message : String(error) };
     } finally {
       this.deletePlan(options.planId);
@@ -589,11 +587,11 @@ User's request (answer this AFTER reading the images):
 // Factory & Plugin
 // ============================================================================
 
-export function createCodeAnyAgent(config: AgentConfig): CodeAnyAgent {
-  return new CodeAnyAgent(config);
+export function createDuangCodeAgent(config: AgentConfig): DuangCodeAgent {
+  return new DuangCodeAgent(config);
 }
 
-export const codeanyPlugin: AgentPlugin = defineAgentPlugin({
-  metadata: CODEANY_METADATA,
-  factory: (config) => createCodeAnyAgent(config),
+export const duangcodePlugin: AgentPlugin = defineAgentPlugin({
+  metadata: DUANGCODE_METADATA,
+  factory: (config) => createDuangCodeAgent(config),
 });

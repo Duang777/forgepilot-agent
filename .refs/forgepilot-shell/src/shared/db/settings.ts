@@ -81,7 +81,7 @@ export const defaultSandboxProviders: SandboxProviderSetting[] = [
 // Agent Runtime Settings
 // ============================================================================
 
-export type AgentRuntimeType = 'codeany' | 'custom';
+export type AgentRuntimeType = 'duangcode' | 'custom';
 
 export interface AgentRuntimeSetting {
   id: string;
@@ -99,9 +99,9 @@ export interface AgentRuntimeSetting {
 
 export const defaultAgentRuntimes: AgentRuntimeSetting[] = [
   {
-    id: 'codeany',
-    type: 'codeany',
-    name: 'CodeAny Agent',
+    id: 'duangcode',
+    type: 'duangcode',
+    name: 'DuangCode Agent',
     enabled: true,
     config: {
       model: 'claude-sonnet-4-20250514',
@@ -414,7 +414,7 @@ export const defaultSettings: Settings = {
   sandboxProviders: defaultSandboxProviders,
   defaultSandboxProvider: 'codex', // Default to Codex sandbox, fallback to native
   agentRuntimes: defaultAgentRuntimes,
-  defaultAgentRuntime: 'codeany', // Default to CodeAny Agent
+  defaultAgentRuntime: 'duangcode', // Default to DuangCode Agent
   maxConversationTurns: 20, // Default: 20 conversation turns
   maxHistoryTokens: 2000, // Default: 2000 tokens for history
   theme: 'system',
@@ -442,6 +442,42 @@ let settingsCache: Settings | null = null;
 let db: Awaited<
   ReturnType<typeof import('@tauri-apps/plugin-sql').default.load>
 > | null = null;
+
+function migrateLegacyAgentRuntime(settings: Settings): boolean {
+  let changed = false;
+  const legacyIndex = settings.agentRuntimes.findIndex((r) => r.id === 'codeany');
+  const targetIndex = settings.agentRuntimes.findIndex((r) => r.id === 'duangcode');
+
+  if (legacyIndex >= 0) {
+    const legacyRuntime = settings.agentRuntimes[legacyIndex];
+    if (targetIndex >= 0) {
+      settings.agentRuntimes[targetIndex] = {
+        ...settings.agentRuntimes[targetIndex],
+        config: {
+          ...legacyRuntime.config,
+          ...settings.agentRuntimes[targetIndex].config,
+        },
+        enabled: legacyRuntime.enabled || settings.agentRuntimes[targetIndex].enabled,
+      };
+      settings.agentRuntimes.splice(legacyIndex, 1);
+    } else {
+      settings.agentRuntimes[legacyIndex] = {
+        ...legacyRuntime,
+        id: 'duangcode',
+        type: 'duangcode',
+        name: 'DuangCode Agent',
+      };
+    }
+    changed = true;
+  }
+
+  if (settings.defaultAgentRuntime === 'codeany') {
+    settings.defaultAgentRuntime = 'duangcode';
+    changed = true;
+  }
+
+  return changed;
+}
 
 // Initialize database connection (only in Tauri)
 async function getDatabase() {
@@ -506,6 +542,7 @@ export async function getSettingsAsync(): Promise<Settings> {
             settings.providers.push(defaultProvider);
           }
         }
+        migrateLegacyAgentRuntime(settings);
         // Debug: Log loaded settings
         console.log('[Settings] Loaded from database:', {
           defaultProvider: settings.defaultProvider,
@@ -540,6 +577,7 @@ export async function getSettingsAsync(): Promise<Settings> {
           loadedSettings.providers.push(defaultProvider);
         }
       }
+      migrateLegacyAgentRuntime(loadedSettings);
       // Debug: Log loaded settings
       console.log('[Settings] Loaded from localStorage:', {
         defaultProvider: loadedSettings.defaultProvider,
@@ -586,6 +624,7 @@ export function getSettings(): Settings {
           loadedSettings.providers.push(defaultProvider);
         }
       }
+      migrateLegacyAgentRuntime(loadedSettings);
       settingsCache = loadedSettings;
       console.log('[Settings] getSettings loaded from localStorage:', {
         defaultProvider: loadedSettings.defaultProvider,
@@ -748,7 +787,7 @@ async function hydrateModelConfigFromBackend(
     settings.defaultModel = model;
 
     const runtimeIndex = settings.agentRuntimes.findIndex(
-      (r) => r.id === 'codeany'
+      (r) => r.id === 'duangcode'
     );
     if (runtimeIndex >= 0) {
       settings.agentRuntimes[runtimeIndex] = {
@@ -764,9 +803,9 @@ async function hydrateModelConfigFromBackend(
       };
     } else {
       settings.agentRuntimes.push({
-        id: 'codeany',
-        type: 'codeany',
-        name: 'CodeAny Agent',
+        id: 'duangcode',
+        type: 'duangcode',
+        name: 'DuangCode Agent',
         enabled: true,
         config: {
           apiKey,
@@ -776,7 +815,7 @@ async function hydrateModelConfigFromBackend(
         },
       });
     }
-    settings.defaultAgentRuntime = 'codeany';
+    settings.defaultAgentRuntime = 'duangcode';
 
     console.log('[Settings] Hydrated model config from backend:', {
       providerId,
@@ -825,6 +864,10 @@ export async function initializeSettings(): Promise<Settings> {
       settings.defaultSandboxProvider
     );
     settings.sandboxEnabled = true;
+    changed = true;
+  }
+
+  if (migrateLegacyAgentRuntime(settings)) {
     changed = true;
   }
 

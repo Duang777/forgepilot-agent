@@ -1,7 +1,7 @@
 """
 forgepilot_sdk
 
-Python implementation aligned with @codeany/open-agent-sdk-typescript.
+Python implementation aligned with the bundled open-agent SDK surface.
 """
 
 from forgepilot_sdk.agent import Agent, createAgent, create_agent, query

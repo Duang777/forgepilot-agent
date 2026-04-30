@@ -74,13 +74,13 @@ export const CONFIG_SEARCH_PATHS = [
 export const DEFAULT_SANDBOX_PROVIDER = 'codex';
 
 /** Default agent provider type */
-export const DEFAULT_AGENT_PROVIDER = 'codeany';
+export const DEFAULT_AGENT_PROVIDER = 'duangcode';
 
 /** Default agent model */
 export const DEFAULT_AGENT_MODEL = 'claude-sonnet-4-20250514';
 
-/** Default CodeAny agent model */
-export const DEFAULT_CODEANY_MODEL = 'claude-sonnet-4-20250514';
+/** Default DuangCode agent model */
+export const DEFAULT_DUANGCODE_MODEL = 'claude-sonnet-4-20250514';
 
 // ============================================================================
 // Timeouts and Limits

@@ -32,8 +32,8 @@ export default {
   workplaceDescription: 'Configure code environment and working directory',
   agentRuntime: 'Agent Runtime',
   agentRuntimeDescription: 'The AI agent that executes tasks',
-  runtimeCodeAnyAgent: 'CodeAny Agent',
-  runtimeCodeAnyAgentDescription: 'Open-source in-process agent runtime, no CLI binary required',
+  runtimeDuangCodeAgent: 'DuangCode Agent',
+  runtimeDuangCodeAgentDescription: 'Open-source in-process agent runtime, no CLI binary required',
 
   // Code Environment
   codeEnvironment: 'Code Environment',

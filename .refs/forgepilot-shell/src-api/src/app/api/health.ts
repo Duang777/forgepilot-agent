@@ -12,7 +12,7 @@ health.get('/', (c) => {
 
 /**
  * Dependencies check endpoint
- * Now that we use @codeany/open-agent-sdk (in-process), no external CLI is required.
+ * The built-in agent runtime runs in-process, so no external CLI is required.
  * This endpoint returns success immediately for backward compatibility.
  */
 health.get('/dependencies', async (c) => {
@@ -28,7 +28,7 @@ health.get('/dependencies/:id', async (c) => {
   return c.json({
     success: true,
     installed: true,
-    message: 'No external CLI dependencies required. Agent runs in-process via @codeany/open-agent-sdk.',
+    message: 'No external CLI dependencies required. Agent runs in-process via DuangCode.',
   });
 });
 

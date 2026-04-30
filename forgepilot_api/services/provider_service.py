@@ -11,7 +11,15 @@ from forgepilot_api.services.codex_config_service import load_codex_runtime_conf
 from forgepilot_api.storage.repositories import read_settings, write_setting
 
 DEFAULT_SANDBOX_PROVIDER = "codex"
-DEFAULT_AGENT_PROVIDER = "codeany"
+DEFAULT_AGENT_PROVIDER = "duangcode"
+LEGACY_AGENT_PROVIDER_ALIASES = {"codeany": DEFAULT_AGENT_PROVIDER}
+
+
+def _normalize_agent_provider_type(provider_type: str | None) -> str:
+    raw = str(provider_type or "").strip()
+    if not raw:
+        return raw
+    return LEGACY_AGENT_PROVIDER_ALIASES.get(raw, raw)
 
 
 class _RegistryProtocol(Protocol):
@@ -58,7 +66,7 @@ ProviderEventListener = Callable[[_ProviderEvent], None]
 
 class _InProcessAgentProvider:
     def __init__(self, provider_type: str, config: dict[str, Any] | None = None) -> None:
-        self.type = provider_type
+        self.type = _normalize_agent_provider_type(provider_type)
         self.config = config or {}
 
     async def shutdown(self) -> None:
@@ -76,6 +84,7 @@ class _AgentRegistryAdapter:
         return [dict(item) for item in self._metadata]
 
     async def get_instance(self, provider_type: str, config: dict[str, Any] | None = None) -> Any:
+        provider_type = _normalize_agent_provider_type(provider_type)
         known = {str(item.get("type") or "") for item in self._metadata}
         if provider_type not in known:
             raise ValueError(f"Unknown agent provider: {provider_type}")
@@ -103,7 +112,7 @@ class _SandboxRegistryAdapter:
 
 
 AGENT_METADATA: list[dict[str, Any]] = [
-    {"type": "codeany", "name": "CodeAny Agent", "description": "In-process Open Agent SDK runtime"},
+    {"type": "duangcode", "name": "DuangCode Agent", "description": "In-process Open Agent SDK runtime"},
     {"type": "custom", "name": "Custom Agent", "description": "Custom external runtime"},
 ]
 
@@ -115,6 +124,8 @@ def _with_status(
     available: list[str],
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    normalized_current_type = _normalize_agent_provider_type(current_type)
+    normalized_available = {_normalize_agent_provider_type(item) for item in available}
     for item in metadata:
         ptype = str(item.get("type") or "")
         rows.append(
@@ -122,8 +133,8 @@ def _with_status(
                 "type": ptype,
                 "name": str(item.get("name") or ptype),
                 "description": str(item.get("description") or ""),
-                "available": ptype in available,
-                "current": ptype == current_type,
+                "available": ptype in normalized_available,
+                "current": ptype == normalized_current_type,
             }
         )
     return rows
@@ -150,7 +161,7 @@ class ProviderManager:
             if not self._state.sandbox_type:
                 self._state.sandbox_type = str(os.getenv("SANDBOX_PROVIDER") or DEFAULT_SANDBOX_PROVIDER)
             if not self._state.agent_type:
-                self._state.agent_type = str(os.getenv("AGENT_PROVIDER") or DEFAULT_AGENT_PROVIDER)
+                self._state.agent_type = _normalize_agent_provider_type(os.getenv("AGENT_PROVIDER") or DEFAULT_AGENT_PROVIDER)
             self._initialized = True
 
     async def init(self) -> None:
@@ -169,6 +180,7 @@ class ProviderManager:
             or os.getenv("AGENT_PROVIDER")
             or self._state.agent_type
         )
+        self._state.agent_type = _normalize_agent_provider_type(self._state.agent_type)
         self._state.agent_config = dict(settings.get("agentConfig") or {})
         self._state.default_provider = str(settings.get("defaultProvider") or self._state.default_provider)
         self._state.default_model = str(settings.get("defaultModel") or self._state.default_model)
@@ -255,7 +267,7 @@ class ProviderManager:
         if category == "sandbox":
             return _ProviderSelection("sandbox", self._state.sandbox_type, dict(self._state.sandbox_config))
         if category == "agent":
-            return _ProviderSelection("agent", self._state.agent_type, dict(self._state.agent_config))
+            return _ProviderSelection("agent", _normalize_agent_provider_type(self._state.agent_type), dict(self._state.agent_config))
         return None
 
     async def switch_provider(self, category: str, provider_type: str, config: dict[str, Any] | None = None) -> None:
@@ -273,14 +285,15 @@ class ProviderManager:
                     await maybe
             self._active_providers.pop(category, None)
 
-        provider = await registry.get_instance(provider_type, config)
+        normalized_provider_type = _normalize_agent_provider_type(provider_type) if category == "agent" else provider_type
+        provider = await registry.get_instance(normalized_provider_type, config)
         self._active_providers[category] = provider
 
         if category == "sandbox":
-            self._state.sandbox_type = provider_type
+            self._state.sandbox_type = normalized_provider_type
             self._state.sandbox_config = dict(config or {})
         elif category == "agent":
-            self._state.agent_type = provider_type
+            self._state.agent_type = normalized_provider_type
             self._state.agent_config = dict(config or {})
             self._agent_config_seeded_from_codex = False
         else:
@@ -290,7 +303,7 @@ class ProviderManager:
         self._emit(
             _ProviderEvent(
                 type="provider:switched",
-                provider_type=provider_type,
+                provider_type=normalized_provider_type,
                 timestamp=datetime.now(timezone.utc),
                 data={"category": category},
             )
@@ -374,7 +387,7 @@ class ProviderManager:
             self._state.sandbox_type = str(settings["sandboxProvider"])
             self._state.sandbox_config = dict(settings.get("sandboxConfig") or {})
         if settings.get("agentProvider"):
-            self._state.agent_type = str(settings["agentProvider"])
+            self._state.agent_type = _normalize_agent_provider_type(str(settings["agentProvider"]))
             self._state.agent_config = dict(settings.get("agentConfig") or {})
             self._agent_config_seeded_from_codex = False
         if "defaultProvider" in settings:

@@ -169,8 +169,11 @@ def load_codex_runtime_config() -> dict[str, str | None]:
     wire_api = _as_optional_text(provider_cfg.get("wire_api"))
     api_key = (
         _as_optional_text(auth.get("OPENAI_API_KEY"))
+        or _as_optional_text(auth.get("DUANGCODE_API_KEY"))
         or _as_optional_text(auth.get("CODEANY_API_KEY"))
         or _as_optional_text(os.getenv("OPENAI_API_KEY"))
+        or _as_optional_text(os.getenv("DUANGCODE_API_KEY"))
+        or _as_optional_text(os.getenv("DUANGCODE_AUTH_TOKEN"))
         or _as_optional_text(os.getenv("CODEANY_API_KEY"))
         or _as_optional_text(os.getenv("CODEANY_AUTH_TOKEN"))
     )

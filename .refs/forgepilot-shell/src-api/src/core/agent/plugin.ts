@@ -6,7 +6,7 @@
  */
 
 import type { AgentConfig, IAgent } from '@/core/agent/types';
-import { DEFAULT_WORK_DIR, DEFAULT_CODEANY_MODEL } from '@/config/constants';
+import { DEFAULT_WORK_DIR, DEFAULT_DUANGCODE_MODEL } from '@/config/constants';
 import type { ProviderMetadata } from '@/shared/provider/types';
 
 // ============================================================================
@@ -78,9 +78,9 @@ export {
 // ============================================================================
 
 /**
- * JSON Schema for CodeAny agent configuration
+ * JSON Schema for DuangCode agent configuration
  */
-export const CODEANY_CONFIG_SCHEMA = {
+export const DUANGCODE_CONFIG_SCHEMA = {
   type: 'object',
   properties: {
     apiKey: {
@@ -93,7 +93,7 @@ export const CODEANY_CONFIG_SCHEMA = {
     },
     model: {
       type: 'string',
-      default: DEFAULT_CODEANY_MODEL,
+      default: DEFAULT_DUANGCODE_MODEL,
       description: 'Model to use',
     },
     workDir: {
@@ -105,15 +105,15 @@ export const CODEANY_CONFIG_SCHEMA = {
 };
 
 /**
- * Metadata for built-in CodeAny agent
+ * Metadata for built-in DuangCode agent
  */
-export const CODEANY_METADATA: AgentProviderMetadata = {
-  type: 'codeany',
-  name: 'CodeAny Agent',
+export const DUANGCODE_METADATA: AgentProviderMetadata = {
+  type: 'duangcode',
+  name: 'DuangCode Agent',
   version: '1.0.0',
   description:
-    'Open-source agent runtime based on @codeany/open-agent-sdk. Runs entirely in-process — no external CLI binary required.',
-  configSchema: CODEANY_CONFIG_SCHEMA,
+    'Built-in agent runtime powered by the bundled open-agent SDK. Runs entirely in-process — no external CLI binary required.',
+  configSchema: DUANGCODE_CONFIG_SCHEMA,
   builtin: true,
   supportsPlan: true,
   supportsStreaming: true,
@@ -124,6 +124,6 @@ export const CODEANY_METADATA: AgentProviderMetadata = {
     'claude-3-5-sonnet-20241022',
     'claude-3-5-haiku-20241022',
   ],
-  defaultModel: DEFAULT_CODEANY_MODEL,
-  tags: ['codeany', 'open-agent', 'in-process', 'planning', 'streaming'],
+  defaultModel: DEFAULT_DUANGCODE_MODEL,
+  tags: ['duangcode', 'open-agent', 'in-process', 'planning', 'streaming'],
 };

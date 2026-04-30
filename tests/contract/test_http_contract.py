@@ -91,7 +91,7 @@ def test_providers_switch_and_config() -> None:
     assert resp.status_code == 200
     assert resp.json()["success"] is True
 
-    resp2 = client.post("/providers/agents/switch", json={"type": "codeany"})
+    resp2 = client.post("/providers/agents/switch", json={"type": "duangcode"})
     assert resp2.status_code == 200
     assert resp2.json()["success"] is True
 
@@ -99,7 +99,7 @@ def test_providers_switch_and_config() -> None:
     assert resp3.status_code == 200
     cfg = resp3.json()
     assert cfg["sandbox"]["type"] == "native"
-    assert cfg["agent"]["type"] == "codeany"
+    assert cfg["agent"]["type"] == "duangcode"
 
 
 def test_preview_and_sandbox_basic() -> None:
@@ -490,4 +490,3 @@ def test_sandbox_error_contracts() -> None:
     missing_stream_cmd = client.post("/sandbox/exec/stream", json={})
     assert missing_stream_cmd.status_code == 400
     assert missing_stream_cmd.json() == {"error": "Command is required"}
-

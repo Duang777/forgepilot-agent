@@ -32,8 +32,8 @@ export default {
   workplaceDescription: '配置代码环境和工作目录',
   agentRuntime: '智能体运行时',
   agentRuntimeDescription: '执行任务的 AI 智能体',
-  runtimeCodeAnyAgent: 'CodeAny Agent',
-  runtimeCodeAnyAgentDescription: '开源进程内智能体运行时，无需外部 CLI',
+  runtimeDuangCodeAgent: 'DuangCode Agent',
+  runtimeDuangCodeAgentDescription: '开源进程内智能体运行时，无需外部 CLI',
 
   // Code Environment
   codeEnvironment: '代码运行环境',
