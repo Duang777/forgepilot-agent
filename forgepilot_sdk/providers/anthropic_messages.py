@@ -3,12 +3,16 @@ from __future__ import annotations
 import json
 import uuid
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
 from forgepilot_sdk.providers.base import LLMProvider, ProviderResponse, ProviderToolCall
 from forgepilot_sdk.types import ConversationMessage, ToolDefinition
 
+def _looks_like_origin(base_url: str) -> bool:
+    parsed = urlparse(base_url)
+    return parsed.path.rstrip("/") == ""
 
 def _to_anthropic_tool(tool: ToolDefinition) -> dict[str, Any]:
     return {
@@ -115,6 +119,15 @@ class AnthropicMessagesProvider(LLMProvider):
         self._api_key = api_key
         self._base_url = (base_url or "https://api.anthropic.com").rstrip("/")
         self._timeout = timeout
+    def _build_messages_endpoint(self) -> str:
+        if self._base_url.endswith("/messages"):
+            return self._base_url
+
+        normalized = self._base_url
+        if _looks_like_origin(normalized):
+            normalized = f"{normalized}/v1"
+
+        return f"{normalized}/messages"
 
     async def create_message(
         self,
@@ -126,7 +139,7 @@ class AnthropicMessagesProvider(LLMProvider):
         max_tokens: int | None = None,
         thinking: dict[str, Any] | None = None,
     ) -> ProviderResponse:
-        endpoint = f"{self._base_url}/v1/messages"
+        endpoint = self._build_messages_endpoint()
         payload: dict[str, Any] = {
             "model": model,
             "system": system_prompt,
