@@ -398,7 +398,9 @@ class OpenAICompatibleProvider(LLMProvider):
         )
 
     def _build_chat_completions_endpoint(self) -> str:
-        if self._base_url.endswith("/v1"):
+        if self._base_url.endswith("/chat/completions"):
+            return self._base_url
+        if self._base_url.endswith(("/v1", "/v4")):
             return f"{self._base_url}/chat/completions"
         return f"{self._base_url}/v1/chat/completions"
 
@@ -523,4 +525,3 @@ class OpenAICompatibleProvider(LLMProvider):
             return "".join(content_parts), tool_calls, usage, finish_reason
 
         raise RuntimeError("Upstream API streaming request failed after retries.")
-

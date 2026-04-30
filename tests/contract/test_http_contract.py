@@ -252,6 +252,23 @@ def test_provider_error_contracts() -> None:
     assert detect_missing.json() == {"error": "baseUrl and apiKey are required"}
 
 
+def test_provider_detect_endpoint_helpers() -> None:
+    from forgepilot_api.api.providers import _build_api_url
+
+    assert (
+        _build_api_url("https://open.bigmodel.cn/api/paas/v4", "openai-completions")
+        == "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+    )
+    assert (
+        _build_api_url("https://api.example.com/v1/chat/completions", "openai-completions")
+        == "https://api.example.com/v1/chat/completions"
+    )
+    assert (
+        _build_api_url("https://api.anthropic.com", "anthropic-messages")
+        == "https://api.anthropic.com/v1/messages"
+    )
+
+
 def test_files_error_contracts(tmp_path) -> None:
     client = TestClient(app)
 
@@ -473,5 +490,4 @@ def test_sandbox_error_contracts() -> None:
     missing_stream_cmd = client.post("/sandbox/exec/stream", json={})
     assert missing_stream_cmd.status_code == 400
     assert missing_stream_cmd.json() == {"error": "Command is required"}
-
 

@@ -25,13 +25,28 @@ DEFAULT_TEST_MODEL = "gpt-3.5-turbo"
 DETECT_TEST_MESSAGE = "OK"
 
 
-def _build_api_url(base_url: str) -> str:
+def _build_anthropic_api_url(base_url: str) -> str:
     normalized = base_url.rstrip("/")
     if "/messages" in normalized:
         return normalized
     if normalized.endswith("/v1"):
         return f"{normalized}/messages"
     return f"{normalized}/v1/messages"
+
+
+def _build_openai_api_url(base_url: str) -> str:
+    normalized = base_url.rstrip("/")
+    if normalized.endswith("/chat/completions"):
+        return normalized
+    if normalized.endswith(("/v1", "/v4")):
+        return f"{normalized}/chat/completions"
+    return f"{normalized}/v1/chat/completions"
+
+
+def _build_api_url(base_url: str, api_type: str | None = None) -> str:
+    if api_type == "openai-completions":
+        return _build_openai_api_url(base_url)
+    return _build_anthropic_api_url(base_url)
 
 
 @router.get("/sandbox")
@@ -106,10 +121,11 @@ async def detect(body: dict[str, Any]) -> dict:
     base_url = body.get("baseUrl")
     api_key = body.get("apiKey")
     test_model = body.get("model") or DEFAULT_TEST_MODEL
+    api_type = str(body.get("apiType") or "openai-completions")
     if not base_url or not api_key:
         return JSONResponse({"error": "baseUrl and apiKey are required"}, status_code=400)
 
-    api_url = _build_api_url(str(base_url))
+    api_url = _build_api_url(str(base_url), api_type)
     timeout_s = API_TIMEOUT_MS / 1000
     payload = {
         "model": test_model,
@@ -143,4 +159,3 @@ async def detect(body: dict[str, Any]) -> dict:
         return {"success": False, "error": "Connection timeout (60s)"}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
-

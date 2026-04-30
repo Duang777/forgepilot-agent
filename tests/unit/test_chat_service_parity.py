@@ -19,6 +19,14 @@ def _collect(async_gen):
 def test_chat_endpoint_helpers() -> None:
     assert chat_service._to_openai_endpoint("https://api.example.com/v1") == "https://api.example.com/v1/chat/completions"
     assert chat_service._to_openai_endpoint("https://api.example.com") == "https://api.example.com/v1/chat/completions"
+    assert (
+        chat_service._to_openai_endpoint("https://open.bigmodel.cn/api/paas/v4")
+        == "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+    )
+    assert (
+        chat_service._to_openai_endpoint("https://api.example.com/v1/chat/completions")
+        == "https://api.example.com/v1/chat/completions"
+    )
     assert chat_service._to_anthropic_endpoint("https://api.anthropic.com") == "https://api.anthropic.com/v1/messages"
 
 
@@ -84,4 +92,3 @@ def test_run_chat_returns_done_when_aborted_before_start(monkeypatch) -> None:
     abort_event.set()
     events = _collect(chat_service.run_chat("hello", model_config=None, abort_controller=abort_event))
     assert events == [{"type": "done"}]
-

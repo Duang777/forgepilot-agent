@@ -212,6 +212,7 @@ export function ModelSettings({
           baseUrl: newProvider.baseUrl,
           apiKey: newProvider.apiKey,
           model: testModel,
+          apiType: newProvider.apiType,
         }),
       });
 
@@ -274,6 +275,7 @@ export function ModelSettings({
           baseUrl: selectedProvider.baseUrl,
           apiKey: selectedProvider.apiKey,
           model: testModel,
+          apiType: selectedProvider.apiType || 'openai-completions',
         }),
       });
 
