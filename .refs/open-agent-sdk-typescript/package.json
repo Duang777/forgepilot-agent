@@ -1,16 +1,17 @@
 {
-  "name": "@codeany/open-agent-sdk",
+  "name": "@duangcode/open-agent-sdk",
   "author": {
-    "name": "CodeAny",
-    "url": "https://codeany.ai"
+    "name": "Duang777",
+    "url": "https://github.com/Duang777"
   },
-  "homepage": "https://github.com/codeany-ai/open-agent-sdk-typescript",
+  "homepage": "https://github.com/Duang777/forgepilot-agent",
   "repository": {
     "type": "git",
-    "url": "https://github.com/codeany-ai/open-agent-sdk-typescript.git"
+    "url": "https://github.com/Duang777/forgepilot-agent.git",
+    "directory": ".refs/open-agent-sdk-typescript"
   },
   "bugs": {
-    "url": "https://github.com/codeany-ai/open-agent-sdk-typescript/issues"
+    "url": "https://github.com/Duang777/forgepilot-agent/issues"
   },
   "version": "0.2.0",
   "description": "Open-source Agent SDK. Runs the full agent loop in-process — no local CLI required. Deploy anywhere: cloud, serverless, Docker, CI/CD.",
@@ -46,7 +47,7 @@
   },
   "keywords": [
     "open-agent-sdk",
-    "codeany",
+    "duangcode",
     "agent",
     "sdk",
     "ai",

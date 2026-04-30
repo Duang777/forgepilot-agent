@@ -9,8 +9,8 @@ import { existsSync } from 'fs';
 import { mkdir, writeFile } from 'fs/promises';
 import { homedir, platform } from 'os';
 import { join } from 'path';
-import { query } from '@codeany/open-agent-sdk';
-import type { AgentOptions as SdkAgentOptions } from '@codeany/open-agent-sdk';
+import { query } from '@duangcode/open-agent-sdk';
+import type { AgentOptions as SdkAgentOptions } from '@duangcode/open-agent-sdk';
 
 import {
   BaseAgent,

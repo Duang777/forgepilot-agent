@@ -1,7 +1,7 @@
 /**
- * @codeany/open-agent-sdk
+ * @duangcode/open-agent-sdk
  *
- * Open-source Agent SDK by CodeAny (https://codeany.ai).
+ * Open-source Agent SDK by DuangCode (https://duangcode.ai).
  * Runs the full agent loop in-process without spawning subprocesses.
  *
  * Features:

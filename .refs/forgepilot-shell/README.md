@@ -45,7 +45,7 @@ ForgePilot is a desktop AI agent application that executes tasks through natural
 ## Features
 
 - **Task Execution** - Natural language task input with real-time streaming
-- **Agent Runtime** - Powered by [@codeany/open-agent-sdk](https://github.com/codeany-ai/open-agent-sdk-typescript), runs entirely in-process with no external CLI dependency
+- **Agent Runtime** - Powered by `@duangcode/open-agent-sdk`, runs entirely in-process with no external CLI dependency
 - **30+ Built-in Tools** - File I/O, shell execution, web search, code editing, and more
 - **Sandbox** - Isolated code execution environment
 - **Artifact Preview** - Live preview for HTML/React/code files
@@ -58,7 +58,7 @@ ForgePilot is a desktop AI agent application that executes tasks through natural
 ```
 forgepilot/
 ├── src/                # Frontend (React + TypeScript)
-├── src-api/            # Backend API (Hono + @codeany/open-agent-sdk)
+├── src-api/            # Backend API (Hono + @duangcode/open-agent-sdk)
 └── src-tauri/          # Desktop app (Tauri + Rust)
 ```
 
@@ -67,7 +67,7 @@ forgepilot/
 | Layer | Technologies |
 |-------|--------------|
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4 |
-| Backend | Hono, @codeany/open-agent-sdk, MCP SDK |
+| Backend | Hono, @duangcode/open-agent-sdk, MCP SDK |
 | Desktop | Tauri 2, SQLite |
 
 
