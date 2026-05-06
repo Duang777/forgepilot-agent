@@ -65,7 +65,9 @@ def _build_system_prompt(base: str, language: str | None) -> str:
 def _to_openai_endpoint(base_url: str | None) -> str:
     if base_url:
         base = base_url.rstrip("/")
-        return f"{base}/chat/completions" if base.endswith("/v1") else f"{base}/v1/chat/completions"
+        if base.endswith("/chat/completions"):
+            return base
+        return f"{base}/chat/completions" if base.endswith(("/v1", "/v4")) else f"{base}/v1/chat/completions"
     return "https://api.openai.com/v1/chat/completions"
 
 
@@ -365,4 +367,3 @@ async def generate_title(
 
     plain = prompt.strip().replace("\n", " ")
     return plain[:30] + ("..." if len(plain) > 30 else "")
-

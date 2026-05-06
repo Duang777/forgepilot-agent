@@ -18,13 +18,15 @@ def _collect(async_gen):
 
 
 def test_agent_reads_api_type_from_env(monkeypatch) -> None:
-    monkeypatch.setenv("CODEANY_API_TYPE", "openai-completions")
-    monkeypatch.setenv("CODEANY_API_KEY", "k")
+    monkeypatch.setenv("DUANGCODE_API_TYPE", "openai-completions")
+    monkeypatch.setenv("DUANGCODE_API_KEY", "k")
     agent = Agent(AgentOptions(model="claude-sonnet-4-6", persist_session=False))
     assert agent.getApiType() == "openai-completions"
 
 
 def test_agent_can_initialize_without_explicit_api_key(monkeypatch) -> None:
+    monkeypatch.delenv("DUANGCODE_API_KEY", raising=False)
+    monkeypatch.delenv("DUANGCODE_AUTH_TOKEN", raising=False)
     monkeypatch.delenv("CODEANY_API_KEY", raising=False)
     monkeypatch.delenv("CODEANY_AUTH_TOKEN", raising=False)
     agent = Agent(

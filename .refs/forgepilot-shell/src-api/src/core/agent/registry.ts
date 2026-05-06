@@ -34,6 +34,10 @@ interface AgentInstance {
   lastUsedAt?: Date;
 }
 
+function normalizeAgentProvider(type: string): string {
+  return type === 'codeany' ? 'duangcode' : type;
+}
+
 // ============================================================================
 // Registry Implementation
 // ============================================================================
@@ -96,6 +100,7 @@ class AgentRegistry {
    * Unregister a provider by type
    */
   unregister(type: string): void {
+    type = normalizeAgentProvider(type);
     this.plugins.delete(type);
     // Remove all cached instances for this type (any config)
     for (const key of this.instances.keys()) {
@@ -109,7 +114,7 @@ class AgentRegistry {
    * Check if a provider type is registered
    */
   has(type: string): boolean {
-    return this.plugins.has(type);
+    return this.plugins.has(normalizeAgentProvider(type));
   }
 
   /**
@@ -120,6 +125,7 @@ class AgentRegistry {
   }
 
   getFactory(type: string): ((config: AgentConfig) => IAgent) | undefined {
+    type = normalizeAgentProvider(type);
     const plugin = this.plugins.get(type);
     return plugin?.factory;
   }
@@ -128,7 +134,7 @@ class AgentRegistry {
    * Get provider metadata by type
    */
   getMetadata(type: string): AgentProviderMetadata | undefined {
-    return this.plugins.get(type)?.metadata;
+    return this.plugins.get(normalizeAgentProvider(type))?.metadata;
   }
 
   /**
@@ -145,6 +151,7 @@ class AgentRegistry {
   create(provider: string, config?: AgentConfig): IAgent;
   create(configOrProvider: AgentConfig | string, config?: AgentConfig): IAgent {
     if (typeof configOrProvider === 'string') {
+      configOrProvider = normalizeAgentProvider(configOrProvider);
       const plugin = this.plugins.get(configOrProvider);
       if (!plugin) {
         throw new Error(
@@ -156,6 +163,10 @@ class AgentRegistry {
         config || { provider: configOrProvider as AgentProvider }
       );
     }
+    configOrProvider = {
+      ...configOrProvider,
+      provider: normalizeAgentProvider(configOrProvider.provider) as AgentProvider,
+    };
     const plugin = this.plugins.get(configOrProvider.provider);
     if (!plugin) {
       throw new Error(
@@ -204,6 +215,7 @@ class AgentRegistry {
    * Get or create a singleton instance
    */
   async getInstance(type: string, config?: AgentConfig): Promise<IAgent> {
+    type = normalizeAgentProvider(type);
     const effectiveConfig: AgentConfig = {
       ...(config ?? {}),
       provider: type as AgentProvider,
@@ -333,7 +345,7 @@ class AgentRegistry {
    * Priority: claude > codex > deepagents
    */
   async getDefaultProvider(): Promise<string | undefined> {
-    const priority = ['codeany'];
+    const priority = ['duangcode'];
     const available = await this.getAvailable();
 
     for (const type of priority) {

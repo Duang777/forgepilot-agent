@@ -12,6 +12,8 @@ def test_parity_summary_has_no_missing_baseline_items() -> None:
     assert summary.expected_sse_missing == ()
     assert summary.expected_tools_missing == ()
     assert summary.is_full_parity is True
+    assert summary.expected_semantic_markers_missing == ()
+    assert summary.semantic_cases_total > 0
 
 
 def test_parity_report_render_contains_status_and_counts() -> None:
@@ -20,4 +22,6 @@ def test_parity_report_render_contains_status_and_counts() -> None:
     report = render_parity_report(summary)
     assert "# Parity Report" in report
     assert "Full route/SSE/tool parity at baseline: **Yes**" in report
+    assert "Semantic harness baseline:" in report
+    assert "Missing semantic markers" in report
     assert f"API routes discovered: `{summary.routes_total}`" in report

@@ -174,7 +174,7 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.78.0
         version: 0.78.0(zod@4.3.5)
-      '@codeany/open-agent-sdk':
+      '@duangcode/open-agent-sdk':
         specifier: link:../../open-agent-sdk-typescript
         version: link:../../open-agent-sdk-typescript
       '@hono/node-server':

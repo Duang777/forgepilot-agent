@@ -105,7 +105,7 @@ def test_provider_manager_switch_shuts_down_previous_provider(monkeypatch: pytes
         monkeypatch.setattr(provider_service, "write_setting", _fake_write_setting)
         manager = provider_service.ProviderManager()
         sandbox_registry = _FakeRegistry(["native", "codex"])
-        agent_registry = _FakeRegistry(["codeany"])
+        agent_registry = _FakeRegistry(["duangcode"])
         manager.register_registry("sandbox", sandbox_registry)
         manager.register_registry("agent", agent_registry)
         manager._initialized = True
@@ -186,21 +186,41 @@ def test_provider_manager_camel_case_methods(monkeypatch: pytest.MonkeyPatch) ->
         monkeypatch.setattr(provider_service, "write_setting", _fake_write_setting)
         manager = provider_service.ProviderManager()
         sandbox_registry = _FakeRegistry(["native"])
-        agent_registry = _FakeRegistry(["codeany"])
+        agent_registry = _FakeRegistry(["duangcode"])
         manager.registerRegistry("sandbox", sandbox_registry)
         manager.registerRegistry("agent", agent_registry)
         manager._initialized = True
 
         await manager.switchSandboxProvider("native", {"foo": "bar"})
-        await manager.switchAgentProvider("codeany", {"k": "v"})
+        await manager.switchAgentProvider("duangcode", {"k": "v"})
         cfg = manager.getConfig()
         assert cfg["sandbox"]["type"] == "native"
-        assert cfg["agent"]["type"] == "codeany"
+        assert cfg["agent"]["type"] == "duangcode"
 
         sandbox_available = await manager.getAvailableSandboxProviders()
         agent_available = await manager.getAvailableAgentProviders()
         assert sandbox_available == ["native"]
-        assert agent_available == ["codeany"]
+        assert agent_available == ["duangcode"]
+
+    asyncio.run(_run())
+
+
+def test_provider_manager_normalizes_legacy_codeany_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _run() -> None:
+        async def _fake_write_setting(_key: str, _value: Any) -> None:
+            return None
+
+        monkeypatch.setattr(provider_service, "write_setting", _fake_write_setting)
+        manager = provider_service.ProviderManager()
+        agent_registry = _FakeRegistry(["duangcode"])
+        manager.registerRegistry("agent", agent_registry)
+        manager._initialized = True
+
+        await manager.switchAgentProvider("codeany", {"k": "v"})
+        cfg = manager.getConfig()
+
+        assert cfg["agent"]["type"] == "duangcode"
+        assert agent_registry.requests == [("duangcode", {"k": "v"})]
 
     asyncio.run(_run())
 

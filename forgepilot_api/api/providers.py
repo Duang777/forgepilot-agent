@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/providers", tags=["providers"])
 
 API_TIMEOUT_MS = 60000
 DETECT_TEST_MESSAGE = "OK"
-AuthType = Literal["bearer", "anthropic-key"]
+AuthType = str
 
 
 @dataclass(frozen=True)
@@ -74,15 +74,11 @@ def _build_headers(spec: DetectProviderSpec, api_key: str) -> dict[str, str]:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
         }
-
-    if spec.auth_type == "anthropic-key":
-        return {
-            "Content-Type": "application/json",
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-        }
-
-    raise ValueError(f"Unsupported auth type: {spec.auth_type}")
+    return {
+        "Content-Type": "application/json",
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+    }
 
 
 def _build_detect_payload(model: str) -> dict[str, Any]:
@@ -102,16 +98,12 @@ def _extract_error_message(resp: httpx.Response) -> str:
 
     if isinstance(error_json, dict):
         error = error_json.get("error")
-
         if isinstance(error, dict):
             return str(error.get("message") or f"HTTP {resp.status_code}")
-
         if isinstance(error, str):
             return error
-
         if error_json.get("message"):
             return str(error_json["message"])
-
     return f"HTTP {resp.status_code}"
 
 
@@ -194,19 +186,12 @@ async def detect(body: dict[str, Any]) -> dict:
     base_url = body.get("baseUrl")
     api_key = body.get("apiKey")
     api_type = str(body.get("apiType") or "openai-completions")
-
     spec = DETECT_PROVIDER_SPECS.get(api_type)
     if spec is None:
         return JSONResponse(
-            {
-                "error": (
-                    "apiType must be one of: "
-                    f"{', '.join(DETECT_PROVIDER_SPECS.keys())}"
-                )
-            },
+            {"error": f"apiType must be one of: {', '.join(DETECT_PROVIDER_SPECS.keys())}"},
             status_code=400,
         )
-
     if not base_url or not api_key:
         return JSONResponse({"error": "baseUrl and apiKey are required"}, status_code=400)
 
@@ -218,11 +203,7 @@ async def detect(body: dict[str, Any]) -> dict:
 
     try:
         async with httpx.AsyncClient(timeout=timeout_s) as client:
-            resp = await client.post(
-                api_url,
-                headers=headers,
-                json=payload,
-            )
+            resp = await client.post(api_url, headers=headers, json=payload)
 
         if resp.is_success:
             return {
@@ -233,16 +214,13 @@ async def detect(body: dict[str, Any]) -> dict:
                 "url": api_url,
                 "response": _safe_response_body(resp),
             }
-
         return {
             "success": False,
             "apiType": api_type,
             "url": api_url,
             "error": _extract_error_message(resp),
         }
-
     except (asyncio.TimeoutError, httpx.TimeoutException):
         return {"success": False, "error": "Connection timeout (60s)"}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
-

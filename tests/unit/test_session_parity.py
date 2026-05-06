@@ -14,6 +14,7 @@ from forgepilot_sdk.session import (
     rename_session,
     save_session,
     tag_session,
+    update_session_metadata,
 )
 from forgepilot_sdk.types import ConversationMessage
 
@@ -165,4 +166,39 @@ def test_delete_session_returns_true_for_missing_session(tmp_path) -> None:
     session_dir = tmp_path / "sessions"
     assert delete_session("absent", sessions_dir=session_dir) is True
 
+
+def test_update_session_metadata_merges_nested_payload(tmp_path) -> None:
+    session_dir = tmp_path / "sessions"
+    save_session("s-meta", [ConversationMessage(role="user", content="hi")], sessions_dir=session_dir)
+
+    ok = update_session_metadata(
+        "s-meta",
+        {
+            "contextCompaction": {
+                "window": {"enabled": True, "keepRecentTurns": 6},
+                "stats": {"compactionCount": 2},
+            }
+        },
+        sessions_dir=session_dir,
+    )
+    assert ok is True
+
+    ok2 = update_session_metadata(
+        "s-meta",
+        {
+            "contextCompaction": {
+                "stats": {"lastCompactedTurn": 9},
+            }
+        },
+        sessions_dir=session_dir,
+    )
+    assert ok2 is True
+
+    loaded = load_session("s-meta", sessions_dir=session_dir)
+    assert loaded is not None
+    metadata = loaded.get("metadata", {})
+    compaction = metadata.get("contextCompaction", {})
+    assert compaction["window"]["keepRecentTurns"] == 6
+    assert compaction["stats"]["compactionCount"] == 2
+    assert compaction["stats"]["lastCompactedTurn"] == 9
 

@@ -36,6 +36,7 @@
 | 模块 | 直达 |
 |---|---|
 | 开始使用 | [快速开始](#quickstart) · [Quick Demo GIF](#quick-demo) |
+| 项目手册 | [项目介绍手册](./docs/project_handbook.md) |
 | 协议与接口 | [API 与协议兼容](#api-compatibility) · [Parity Report](#parity-report) · [配置说明](#configuration) |
 | 安全与规范 | [安全与生产收口](#security) · [Security Policy](#security-policy) |
 | 发布与版本 | [Versioning / Changelog](#versioning) · [路线图](#roadmap) |

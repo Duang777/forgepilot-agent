@@ -78,6 +78,105 @@ def test_engine_can_use_tool_exception_returns_tool_result_error() -> None:
     assert "Permission check error" in str(tool_results[0]["result"]["output"])
 
 
+def test_engine_policy_deny_returns_policy_marker_tool_result(tmp_path) -> None:
+    provider = _SimpleProvider(
+        [
+            ProviderResponse(
+                content="",
+                tool_calls=[ProviderToolCall(id="u-policy-deny", name="Bash", input={"command": "rm -rf ./tmp"})],
+                usage={"input_tokens": 1, "output_tokens": 1},
+            ),
+            ProviderResponse(content="done", tool_calls=[], usage={"input_tokens": 1, "output_tokens": 1}),
+        ]
+    )
+
+    executed = {"called": False}
+
+    async def _tool_call(input_data: dict, _ctx: ToolContext) -> ToolResult:
+        del input_data
+        executed["called"] = True
+        return ToolResult(content="ok", is_error=False)
+
+    tool = define_tool(
+        name="Bash",
+        description="Run command",
+        input_schema={"type": "object", "properties": {"command": {"type": "string"}}},
+        call=_tool_call,
+    )
+
+    engine = QueryEngine(
+        provider=provider,  # type: ignore[arg-type]
+        model="gpt-4o",
+        tools=[tool],
+        cwd=tmp_path,
+        max_turns=3,
+    )
+    events = _collect(engine.submit_message("run"))
+    tool_results = [e for e in events if e.get("type") == "tool_result"]
+    assert tool_results
+    assert executed["called"] is False
+    assert tool_results[0]["result"]["is_error"] is True
+    assert "__POLICY_DENIED__" in str(tool_results[0]["result"]["output"])
+
+
+def test_engine_policy_requires_permission_before_execution(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("FORGEPILOT_POLICY_DEV_RELAXED", "0")
+
+    provider = _SimpleProvider(
+        [
+            ProviderResponse(
+                content="",
+                tool_calls=[ProviderToolCall(id="u-policy-perm", name="Bash", input={"command": "git push origin main"})],
+                usage={"input_tokens": 1, "output_tokens": 1},
+            ),
+            ProviderResponse(content="done", tool_calls=[], usage={"input_tokens": 1, "output_tokens": 1}),
+        ]
+    )
+
+    executed = {"called": False}
+    requested: list[dict[str, str]] = []
+
+    async def _tool_call(input_data: dict, _ctx: ToolContext) -> ToolResult:
+        del input_data
+        executed["called"] = True
+        return ToolResult(content="ok", is_error=False)
+
+    async def _on_permission(permission: dict) -> None:
+        requested.append(permission)
+
+    async def _wait(_permission_id: str) -> bool:
+        return False
+
+    tool = define_tool(
+        name="Bash",
+        description="Run command",
+        input_schema={"type": "object", "properties": {"command": {"type": "string"}}},
+        call=_tool_call,
+        read_only=False,
+        concurrency_safe=False,
+    )
+
+    engine = QueryEngine(
+        provider=provider,  # type: ignore[arg-type]
+        model="gpt-4o",
+        tools=[tool],
+        cwd=tmp_path,
+        max_turns=3,
+        on_permission_request=_on_permission,
+        wait_for_permission_decision=_wait,
+    )
+    events = _collect(engine.submit_message("run"))
+
+    system_subtypes = [e.get("subtype") for e in events if e.get("type") == "system"]
+    tool_results = [e for e in events if e.get("type") == "tool_result"]
+
+    assert "permission_request" in system_subtypes
+    assert requested
+    assert executed["called"] is False
+    assert tool_results
+    assert "Permission denied" in str(tool_results[0]["result"]["output"])
+
+
 def test_engine_include_partial_messages_emits_partial_blocks() -> None:
     provider = _SimpleProvider(
         [
@@ -247,19 +346,18 @@ def test_engine_emits_compact_boundary_event(monkeypatch) -> None:
             del kwargs
             return ProviderResponse(content="done", tool_calls=[], usage={"input_tokens": 1, "output_tokens": 1})
 
-    async def _compact(*args, **kwargs):
+    async def _apply(*args, **kwargs):
         del args, kwargs
         return {
-            "compacted_messages": [
+            "messages": [
                 ConversationMessage(role="user", content="summary"),
                 ConversationMessage(role="assistant", content="ack"),
             ],
             "summary": "conversation summary",
-            "state": engine_module.create_auto_compact_state(),
+            "compact_state": engine_module.create_auto_compact_state(),
         }
 
-    monkeypatch.setattr(engine_module, "should_auto_compact", lambda *a, **k: True)
-    monkeypatch.setattr(engine_module, "compact_conversation", _compact)
+    monkeypatch.setattr(engine_module.ContextOrchestrator, "apply_before_model_call", _apply)
 
     engine = QueryEngine(
         provider=_Provider(),  # type: ignore[arg-type]

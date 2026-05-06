@@ -3,19 +3,19 @@ import type { AgentPlugin } from '@/core/agent/plugin';
 import { getAgentRegistry } from '@/core/agent/registry';
 import type { AgentConfig, AgentProvider, IAgent } from '@/core/agent/types';
 import { DEFAULT_AGENT_PROVIDER, DEFAULT_WORK_DIR } from '@/config/constants';
-import { codeanyPlugin } from '@/extensions/agent/codeany';
+import { duangcodePlugin } from '@/extensions/agent/duangcode';
 
 /**
  * Agent SDK Abstraction Layer
  *
  * Provides a unified interface for AI agent implementations.
- * Default provider: CodeAny Agent (@codeany/open-agent-sdk)
+ * Default provider: DuangCode Agent
  *
  * Usage:
  * ```typescript
  * import { createAgent } from "./agents";
  *
- * const agent = createAgent({ provider: "codeany" });
+ * const agent = createAgent({ provider: "duangcode" });
  *
  * for await (const message of agent.run("Hello!")) {
  *   console.log(message);
@@ -54,16 +54,16 @@ export {
 
 // Export provider implementations
 export {
-  CodeAnyAgent,
-  createCodeAnyAgent,
-  codeanyPlugin,
-} from '@/extensions/agent/codeany';
+  DuangCodeAgent,
+  createDuangCodeAgent,
+  duangcodePlugin,
+} from '@/extensions/agent/duangcode';
 
 /**
  * All built-in agent plugins
  */
 export const builtinAgentPlugins: AgentPlugin[] = [
-  codeanyPlugin,
+  duangcodePlugin,
 ];
 
 /**
@@ -110,7 +110,7 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
 };
 
 /**
- * Create a default agent (CodeAny)
+ * Create a default agent (DuangCode)
  */
 export function createDefaultAgent(overrides?: Partial<AgentConfig>): IAgent {
   return createAgent({
@@ -123,7 +123,7 @@ export function createDefaultAgent(overrides?: Partial<AgentConfig>): IAgent {
  * Get the default agent provider
  */
 export function getDefaultProvider(): AgentProvider {
-  return 'codeany';
+  return 'duangcode';
 }
 
 // ============================================================================

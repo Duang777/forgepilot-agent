@@ -1,256 +1,243 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ForgePilot Agent - 官网下载</title>
+    <title>ForgePilot Agent | Desktop Workflow</title>
     <meta
       name="description"
-      content="ForgePilot Agent 官网下载页。获取 Windows、macOS、Linux 最新版本，查看更新日志与安装说明。"
+      content="ForgePilot Agent 桌面工作流官网。下载最新版本，查看执行流程与安装指南。"
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500&family=JetBrains+Mono:wght@400;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <div class="noise" aria-hidden="true"></div>
+
     <header class="site-header">
       <a class="brand" href="#top" aria-label="ForgePilot Agent">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span class="brand-text">ForgePilot Agent</span>
+        <span class="brand-star" aria-hidden="true">✶</span>
+        <span class="brand-text">FORGEPILOT AGENT</span>
       </a>
       <nav class="site-nav" aria-label="主导航">
-        <a href="#workspace">工作区</a>
-        <a href="#downloads">下载</a>
-        <a href="#ai-timeline">AI Timeline</a>
-        <a href="#release-notes">更新</a>
-        <a href="#guide">安装</a>
+        <a href="#work">WORK</a>
+        <a href="#why">WHY</a>
+        <a href="#downloads">DOWNLOAD</a>
+        <a href="#install">INSTALL</a>
         <a href="#faq">FAQ</a>
       </nav>
-      <a class="btn btn-dark btn-pill" href="#downloads">下载客户端</a>
+      <div class="status-chip" aria-label="available status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>available now</span>
+      </div>
     </header>
 
     <main id="top">
-      <section class="hero">
-        <div class="hero-copy">
-          <p class="mono-tag">FORGEPILOT DESKTOP</p>
-          <h1>一个更懂开发者节奏的 AI 桌面工作台</h1>
-          <p class="hero-subtitle">
-            温暖沉浸的开发体验。聚焦代码执行流、工具编排与真实文件产出，而不是空洞对话。
-          </p>
-          <div class="hero-actions">
-            <a class="btn btn-light btn-pill" href="#downloads">按系统下载</a>
-            <a
-              class="btn btn-ghost btn-pill"
-              href="https://github.com/Duang777/forgepilot-agent"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="打开 GitHub 仓库"
-              >查看源码</a
-            >
-          </div>
+      <section class="hero section reveal">
+        <p class="kicker">DESKTOP AI WORKFLOW</p>
+        <h1>
+          We bring
+          <em>clarity</em>
+          and
+          <em>character</em>
+          to coding systems.
+        </h1>
+        <p class="hero-lead">
+          这版对齐你给的参考网站风格逻辑：排版优先、模块克制、信息分层清晰。
+          ForgePilot 把计划、工具执行、补丁产出串成可追踪执行流。
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-solid" href="#downloads">下载客户端</a>
+          <a class="btn btn-outline" href="https://github.com/Duang777/forgepilot-agent" target="_blank" rel="noreferrer">查看源码</a>
         </div>
-        <div class="hero-panel" aria-hidden="true">
-          <div class="metric">
-            <span class="metric-label">Latest</span>
+        <div class="hero-meta" aria-label="release meta">
+          <div>
+            <p>Latest</p>
             <strong id="latest-version">loading...</strong>
           </div>
-          <div class="metric">
-            <span class="metric-label">Builds</span>
+          <div>
+            <p>Status</p>
+            <strong id="release-status">checking...</strong>
+          </div>
+          <div>
+            <p>Targets</p>
             <strong id="build-targets">Win / macOS / Linux</strong>
           </div>
-          <div class="metric">
-            <span class="metric-label">Release</span>
-            <strong id="release-status">GitHub Releases</strong>
+        </div>
+      </section>
+
+      <section id="work" class="section marquee reveal" aria-label="workflow cards">
+        <div class="marquee-track">
+          <article class="marquee-card">
+            <p class="card-tag">01</p>
+            <h3>Plan Stream</h3>
+            <p>任务拆解与风险识别</p>
+          </article>
+          <article class="marquee-card">
+            <p class="card-tag">02</p>
+            <h3>Context Search</h3>
+            <p>代码与配置快速定位</p>
+          </article>
+          <article class="marquee-card">
+            <p class="card-tag">03</p>
+            <h3>Patch Apply</h3>
+            <p>补丁生成与变更说明</p>
+          </article>
+          <article class="marquee-card">
+            <p class="card-tag">04</p>
+            <h3>Verify Chain</h3>
+            <p>lint / typecheck / test</p>
+          </article>
+          <article class="marquee-card" aria-hidden="true">
+            <p class="card-tag">01</p>
+            <h3>Plan Stream</h3>
+            <p>任务拆解与风险识别</p>
+          </article>
+          <article class="marquee-card" aria-hidden="true">
+            <p class="card-tag">02</p>
+            <h3>Context Search</h3>
+            <p>代码与配置快速定位</p>
+          </article>
+          <article class="marquee-card" aria-hidden="true">
+            <p class="card-tag">03</p>
+            <h3>Patch Apply</h3>
+            <p>补丁生成与变更说明</p>
+          </article>
+          <article class="marquee-card" aria-hidden="true">
+            <p class="card-tag">04</p>
+            <h3>Verify Chain</h3>
+            <p>lint / typecheck / test</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="why" class="section reveal">
+        <p class="kicker">SELECTED WORK</p>
+        <h2>像作品集一样组织你的工程能力</h2>
+
+        <article class="case-row">
+          <div class="case-title">
+            <h3>Session Runtime</h3>
+            <div class="case-tags">
+              <span>FastAPI</span>
+              <span>SSE</span>
+              <span>Persistence</span>
+            </div>
           </div>
-        </div>
+          <div class="case-detail">
+            <p>对话状态与权限状态可追踪持久化，任务执行过程可重放、可审计。</p>
+            <a href="#downloads">Explore →</a>
+          </div>
+        </article>
+
+        <article class="case-row">
+          <div class="case-title">
+            <h3>Tool Orchestration</h3>
+            <div class="case-tags">
+              <span>File</span>
+              <span>Shell</span>
+              <span>Web</span>
+              <span>MCP</span>
+            </div>
+          </div>
+          <div class="case-detail">
+            <p>统一工具协议，执行路径稳定，减少“只会聊天不会产出”的断层。</p>
+            <a href="#downloads">Explore →</a>
+          </div>
+        </article>
+
+        <article class="case-row">
+          <div class="case-title">
+            <h3>Desktop Delivery</h3>
+            <div class="case-tags">
+              <span>Tauri</span>
+              <span>Python sidecar</span>
+              <span>Release</span>
+            </div>
+          </div>
+          <div class="case-detail">
+            <p>桌面端与 API 分层发布，支持多平台构建与 GitHub Release 自动分发。</p>
+            <a href="#downloads">Explore →</a>
+          </div>
+        </article>
       </section>
 
-      <section id="workspace" class="section workspace-showcase">
-        <div class="section-head">
-          <p class="mono-tag">EDITOR PREVIEW</p>
-          <h2>面向开发者的代码工作区</h2>
-        </div>
-        <p class="workspace-lead">
-          编辑器主视图、终端输出、任务状态在一个画面里同步更新。代码在左，执行反馈在右，减少上下文切换。
-        </p>
-        <div class="workspace-grid">
-          <article class="editor-shell" aria-label="代码编辑器截图模拟">
-            <div class="editor-topbar">
-              <span class="dot dot-red" aria-hidden="true"></span>
-              <span class="dot dot-yellow" aria-hidden="true"></span>
-              <span class="dot dot-green" aria-hidden="true"></span>
-              <p class="editor-file">forgepilot_sdk/engine.py</p>
-            </div>
-            <pre class="editor-code"><code><span class="ln">1</span><span class="code"><span class="kw">async</span> <span class="fn">def</span> submit_message(prompt):</span>
-<span class="ln">2</span><span class="code">    messages.append({"role": <span class="str">"user"</span>, "content": prompt})</span>
-<span class="ln">3</span><span class="code">    <span class="kw">while</span> turns &lt; max_turns:</span>
-<span class="ln">4</span><span class="code">        response = <span class="kw">await</span> provider.create_message(messages)</span>
-<span class="ln">5</span><span class="code">        <span class="kw">if</span> response.tool_calls:</span>
-<span class="ln">6</span><span class="code">            events = <span class="kw">await</span> execute_tools(response.tool_calls)</span>
-<span class="ln">7</span><span class="code">            messages.extend(events.as_tool_messages())</span>
-<span class="ln">8</span><span class="code">        <span class="kw">else</span>:</span>
-<span class="ln">9</span><span class="code">            <span class="kw">return</span> response.text</span></code></pre>
-          </article>
-          <article class="terminal-shell" aria-label="运行状态截图模拟">
-            <header>
-              <p class="mono-tag">LIVE RUN</p>
-              <p class="terminal-title">Desktop task stream</p>
-            </header>
-            <div class="terminal-lines">
-              <p><span>[13:42:05]</span> Loading session <strong>sess_42ca</strong></p>
-              <p><span>[13:42:06]</span> Tool call: <strong>search_query</strong> started</p>
-              <p><span>[13:42:07]</span> Tool result: 12 matches from docs</p>
-              <p><span>[13:42:08]</span> Applying patch to <strong>website/styles.css</strong></p>
-              <p><span>[13:42:10]</span> Finished in 5 turns, no retries</p>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section id="downloads" class="section">
-        <div class="section-head">
-          <p class="mono-tag">DOWNLOADS</p>
-          <h2>选择你的系统版本</h2>
-        </div>
+      <section id="downloads" class="section reveal">
+        <p class="kicker">DOWNLOADS</p>
+        <h2>选择你的系统版本</h2>
         <p class="download-tip" id="download-tip">正在同步最新 Release 下载资产...</p>
+
         <div class="download-grid">
           <article class="download-card">
             <h3>Windows x64</h3>
-            <p>适用于 Windows 10/11，推荐开发主机使用。</p>
-            <a
-              class="btn btn-dark btn-pill download-link"
-              data-platform="windows"
-              href="https://github.com/Duang777/forgepilot-agent/releases"
-              >下载 .exe</a
-            >
+            <p>适用于 Windows 10/11。</p>
+            <a class="btn btn-solid download-link" data-platform="windows" href="https://github.com/Duang777/forgepilot-agent/releases">下载 .exe</a>
             <button class="copy-btn" data-copy="未获取到校验码" type="button">复制校验码</button>
           </article>
 
           <article class="download-card">
             <h3>macOS (Apple Silicon)</h3>
-            <p>适用于 macOS 13+，优先支持 M 系列芯片。</p>
-            <a
-              class="btn btn-dark btn-pill download-link"
-              data-platform="macos"
-              href="https://github.com/Duang777/forgepilot-agent/releases"
-              >下载 .dmg</a
-            >
+            <p>适用于 macOS 13+（M 系列）。</p>
+            <a class="btn btn-solid download-link" data-platform="macos" href="https://github.com/Duang777/forgepilot-agent/releases">下载 .dmg</a>
             <button class="copy-btn" data-copy="未获取到校验码" type="button">复制校验码</button>
           </article>
 
           <article class="download-card">
             <h3>Linux AppImage</h3>
-            <p>适用于主流发行版，免安装直接运行。</p>
-            <a
-              class="btn btn-dark btn-pill download-link"
-              data-platform="linux"
-              href="https://github.com/Duang777/forgepilot-agent/releases"
-              >下载 .AppImage</a
-            >
+            <p>适用于主流 Linux 发行版。</p>
+            <a class="btn btn-solid download-link" data-platform="linux" href="https://github.com/Duang777/forgepilot-agent/releases">下载 .AppImage</a>
             <button class="copy-btn" data-copy="未获取到校验码" type="button">复制校验码</button>
           </article>
         </div>
       </section>
 
-      <section id="ai-timeline" class="section">
-        <div class="section-head">
-          <p class="mono-tag">AI TIMELINE</p>
-          <h2>任务执行时间线</h2>
-        </div>
-        <p class="workspace-lead">
-          每次任务都会被拆成可追踪阶段，帮助你快速判断现在模型在思考、搜索、读文件还是改代码。
-        </p>
-        <div class="timeline-chips" role="list" aria-label="AI timeline 状态色块">
-          <div class="timeline-chip thinking" role="listitem">
-            <span class="chip-label">thinking</span>
-            <p>规划步骤与评估风险</p>
-          </div>
-          <div class="timeline-chip grep" role="listitem">
-            <span class="chip-label">grep</span>
-            <p>检索文件与关键上下文</p>
-          </div>
-          <div class="timeline-chip read" role="listitem">
-            <span class="chip-label">read</span>
-            <p>读取源码并定位差异</p>
-          </div>
-          <div class="timeline-chip edit" role="listitem">
-            <span class="chip-label">edit</span>
-            <p>应用补丁并执行验证</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="release-notes" class="section split">
-        <div class="section-head">
-          <p class="mono-tag">RELEASE NOTES</p>
-          <h2>版本更新</h2>
-        </div>
-        <div class="timeline">
+      <section id="install" class="section reveal">
+        <p class="kicker">INSTALL GUIDE</p>
+        <h2>三步安装</h2>
+        <div class="install-grid">
           <article>
-            <span class="version">v0.2.0</span>
-            <p>新增会话鲁棒性优化、工具执行链路改进、前端端口自动探测。</p>
+            <span>01</span>
+            <p>下载与你系统匹配的安装包。</p>
           </article>
           <article>
-            <span class="version">v0.1.8</span>
-            <p>增强权限流程与任务事件持久化，提升桌面端稳定性。</p>
+            <span>02</span>
+            <p>复制并校验 SHA256 哈希值。</p>
           </article>
           <article>
-            <span class="version">v0.1.5</span>
-            <p>引入多模型配置入口，完善日志与错误可观测性。</p>
+            <span>03</span>
+            <p>启动后配置模型与 API，开始执行任务。</p>
           </article>
         </div>
       </section>
 
-      <section id="guide" class="section">
-        <div class="section-head">
-          <p class="mono-tag">INSTALL GUIDE</p>
-          <h2>安装说明</h2>
-        </div>
-        <div class="guide-grid">
-          <article class="guide-card">
-            <h3>1. 下载对应系统包</h3>
-            <p>优先使用“最新版本”资产，避免手动选择错误架构。</p>
-          </article>
-          <article class="guide-card">
-            <h3>2. 校验文件哈希</h3>
-            <p>点击“复制校验码”，在本地对照 SHA256，确认安装包完整。</p>
-          </article>
-          <article class="guide-card">
-            <h3>3. 首次启动初始化</h3>
-            <p>启动后配置模型与 API，即可进入任务执行与工具模式。</p>
-          </article>
-        </div>
-      </section>
-
-      <section id="faq" class="section">
-        <div class="section-head">
-          <p class="mono-tag">FAQ</p>
-          <h2>常见问题</h2>
-        </div>
+      <section id="faq" class="section reveal">
+        <p class="kicker">FAQ</p>
+        <h2>常见问题</h2>
         <div class="faq-list">
           <details>
-            <summary>为什么下载后点击无反应？</summary>
-            <p>请确认系统安全策略没有阻止应用启动，并优先使用管理员身份运行一次。</p>
+            <summary>下载后打不开怎么办？</summary>
+            <p>先检查系统安全策略和签名拦截，必要时以管理员身份启动一次。</p>
           </details>
           <details>
             <summary>出现 network error 怎么办？</summary>
-            <p>多数情况是本地 API 进程未运行或端口不一致，请检查 2026 端口并重启应用。</p>
+            <p>请优先确认本地 API 是否在 `127.0.0.1:2026` 正常运行。</p>
           </details>
           <details>
-            <summary>可以离线使用吗？</summary>
-            <p>工具与文件能力可离线执行，但模型推理仍需可访问的模型服务端点。</p>
+            <summary>能离线使用吗？</summary>
+            <p>工具和文件能力可离线执行，但模型推理仍需要模型端点可访问。</p>
           </details>
         </div>
       </section>
     </main>
 
     <footer class="site-footer">
-      <p>© 2026 ForgePilot Agent</p>
-      <a href="https://github.com/Duang777/forgepilot-agent" target="_blank" rel="noreferrer">GitHub 仓库</a>
+      <p>© <span id="current-year">2026</span> ForgePilot Agent</p>
+      <a href="https://github.com/Duang777/forgepilot-agent" target="_blank" rel="noreferrer">GitHub</a>
     </footer>
 
     <script src="./script.js"></script>

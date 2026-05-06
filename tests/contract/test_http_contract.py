@@ -91,7 +91,7 @@ def test_providers_switch_and_config() -> None:
     assert resp.status_code == 200
     assert resp.json()["success"] is True
 
-    resp2 = client.post("/providers/agents/switch", json={"type": "codeany"})
+    resp2 = client.post("/providers/agents/switch", json={"type": "duangcode"})
     assert resp2.status_code == 200
     assert resp2.json()["success"] is True
 
@@ -99,7 +99,7 @@ def test_providers_switch_and_config() -> None:
     assert resp3.status_code == 200
     cfg = resp3.json()
     assert cfg["sandbox"]["type"] == "native"
-    assert cfg["agent"]["type"] == "codeany"
+    assert cfg["agent"]["type"] == "duangcode"
 
 
 def test_preview_and_sandbox_basic() -> None:
@@ -250,6 +250,23 @@ def test_provider_error_contracts() -> None:
     detect_missing = client.post("/providers/detect", json={"baseUrl": "https://example.com"})
     assert detect_missing.status_code == 400
     assert detect_missing.json() == {"error": "baseUrl and apiKey are required"}
+
+
+def test_provider_detect_endpoint_helpers() -> None:
+    from forgepilot_api.api.providers import _build_api_url
+
+    assert (
+        _build_api_url("https://open.bigmodel.cn/api/paas/v4", "openai-completions")
+        == "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+    )
+    assert (
+        _build_api_url("https://api.example.com/v1/chat/completions", "openai-completions")
+        == "https://api.example.com/v1/chat/completions"
+    )
+    assert (
+        _build_api_url("https://api.anthropic.com", "anthropic-messages")
+        == "https://api.anthropic.com/v1/messages"
+    )
 
 
 def test_files_error_contracts(tmp_path) -> None:
@@ -473,5 +490,3 @@ def test_sandbox_error_contracts() -> None:
     missing_stream_cmd = client.post("/sandbox/exec/stream", json={})
     assert missing_stream_cmd.status_code == 400
     assert missing_stream_cmd.json() == {"error": "Command is required"}
-
-

@@ -403,7 +403,10 @@ class ProviderManagerImpl {
     }
 
     if (!this.config.agent) {
-      const agentType = process.env.AGENT_PROVIDER || DEFAULT_AGENT_PROVIDER;
+      const agentType =
+        process.env.AGENT_PROVIDER === 'codeany'
+          ? DEFAULT_AGENT_PROVIDER
+          : process.env.AGENT_PROVIDER || DEFAULT_AGENT_PROVIDER;
       this.config.agent = { category: 'agent', type: agentType };
     }
 

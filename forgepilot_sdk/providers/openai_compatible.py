@@ -15,6 +15,8 @@ from forgepilot_sdk.types import ConversationMessage, ToolDefinition
 
 logger = logging.getLogger(__name__)
 _RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+
+
 def _looks_like_origin(base_url: str) -> bool:
     parsed = urlparse(base_url)
     return parsed.path.rstrip("/") == ""
@@ -292,7 +294,6 @@ class OpenAICompatibleProvider(LLMProvider):
     ) -> ProviderResponse:
         del thinking
         endpoint = self._build_chat_completions_endpoint()
-        logger.warning("OpenAI-compatible endpoint=%s base_url=%s", endpoint, self._base_url)
         payload: dict[str, Any] = {
             "model": model,
             "messages": [{"role": "system", "content": system_prompt}] + _to_openai_messages(messages),
@@ -401,16 +402,13 @@ class OpenAICompatibleProvider(LLMProvider):
             max_tokens=payload.get("maxTokens") or payload.get("max_tokens"),
             thinking=payload.get("thinking"),
         )
+
     def _build_chat_completions_endpoint(self) -> str:
         if self._base_url.endswith("/chat/completions"):
             return self._base_url
-
-        normalized = self._base_url
-        if _looks_like_origin(normalized):
-            normalized = f"{normalized}/v1"
-
-        return f"{normalized}/chat/completions"
-    
+        if _looks_like_origin(self._base_url):
+            return f"{self._base_url}/v1/chat/completions"
+        return f"{self._base_url}/chat/completions"
 
     async def _create_message_streaming(
         self,
@@ -533,4 +531,3 @@ class OpenAICompatibleProvider(LLMProvider):
             return "".join(content_parts), tool_calls, usage, finish_reason
 
         raise RuntimeError("Upstream API streaming request failed after retries.")
-

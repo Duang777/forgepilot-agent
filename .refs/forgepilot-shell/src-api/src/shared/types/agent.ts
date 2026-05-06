@@ -93,7 +93,7 @@ export interface AgentRequest {
   // MCP configuration
   mcpConfig?: McpConfigRequest;
   // Provider selection (optional, defaults to env config)
-  provider?: 'codeany';
+  provider?: 'duangcode';
   // Custom model configuration
   modelConfig?: ModelConfig;
   // Sandbox configuration for isolated execution

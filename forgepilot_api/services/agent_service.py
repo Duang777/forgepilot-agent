@@ -48,6 +48,10 @@ PERMISSION_POLL_INTERVAL_SECONDS = max(
     0.1,
     float(os.getenv("FORGEPILOT_PERMISSION_POLL_INTERVAL_SECONDS", "0.5")),
 )
+POLICY_TRACE_ENABLED = os.getenv("FORGEPILOT_POLICY_TRACE_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+POLICY_TRACE_DIR = Path(
+    os.getenv("FORGEPILOT_POLICY_TRACE_DIR", str(WORK_DIR / ".policy-traces"))
+).expanduser()
 
 PLANNING_INSTRUCTION = """You are an AI assistant in planning mode.
 First decide whether the request is simple chat/question or a task requiring tools/files.
@@ -128,6 +132,15 @@ class AgentSession:
     created_at: datetime
     phase: str
     abort_event: asyncio.Event
+
+
+@dataclass(slots=True)
+class ExecutionEvidence:
+    tool_use_by_id: dict[str, str]
+    tool_result_by_id: dict[str, dict[str, Any]]
+    observed_tool_names: set[str]
+    assistant_text_chunks: list[str]
+    policy_denied_hits: list[str]
 
 
 _local_sessions: dict[str, AgentSession] = {}
@@ -569,22 +582,111 @@ def _assistant_claims_file_written(text: str) -> bool:
     return any(re.search(p, compact, re.IGNORECASE) for p in patterns)
 
 
-def _should_block_unverified_file_success(prompt: str, tool_names: set[str], assistant_text: str) -> bool:
-    normalized_tools = {str(name or "").strip().lower() for name in tool_names if str(name or "").strip()}
-    has_write = any(name in _WRITE_LIKE_TOOL_NAMES for name in normalized_tools)
-    has_verify = any(name in _VERIFY_LIKE_TOOL_NAMES for name in normalized_tools)
+def _has_successful_tool_result(evidence: ExecutionEvidence, names: set[str]) -> bool:
+    normalized = {str(name or "").strip().lower() for name in names if str(name or "").strip()}
+    for payload in evidence.tool_result_by_id.values():
+        tool_name = str(payload.get("name") or "").strip().lower()
+        if tool_name in normalized and not bool(payload.get("isError")):
+            return True
+    return False
 
+
+def _evaluate_semantic_rules(
+    *,
+    prompt: str,
+    evidence: ExecutionEvidence,
+    language: str | None,
+) -> tuple[str | None, str | None]:
+    assistant_text = "".join(evidence.assistant_text_chunks)
+    claims_written = _assistant_claims_file_written(assistant_text)
     is_file_task = _looks_like_file_task(prompt)
     is_path_query = _looks_like_path_query(prompt)
-    claims_written = _assistant_claims_file_written(assistant_text)
+    has_successful_write = _has_successful_tool_result(evidence, _WRITE_LIKE_TOOL_NAMES)
+    has_successful_verify = _has_successful_tool_result(evidence, _VERIFY_LIKE_TOOL_NAMES)
 
-    if is_file_task and not has_write:
-        return True
-    if is_path_query and claims_written and not (has_write or has_verify):
-        return True
-    if claims_written and is_file_task and not has_write:
-        return True
-    return False
+    if evidence.policy_denied_hits and (has_successful_write is False):
+        return (
+            "__POLICY_EXECUTION_MISMATCH__",
+            "Detected policy-denied tool attempts without verified execution evidence.",
+        )
+
+    if (is_file_task and not has_successful_write) or (
+        is_path_query and claims_written and not (has_successful_write or has_successful_verify)
+    ):
+        lang = _resolve_language(language, prompt)
+        message = (
+            "未检测到真实的文件写入/验证工具调用，已阻止“已生成”结果。请重新执行任务。"
+            if lang == "zh-CN"
+            else "Blocked unverifiable file-success response because no successful file write/verify tool result was detected. Please run the task again."
+        )
+        return "__UNVERIFIED_FILE_OPERATION__", message
+
+    return None, None
+
+
+def _should_block_unverified_file_success(prompt: str, tool_names: set[str], assistant_text: str) -> bool:
+    evidence = ExecutionEvidence(
+        tool_use_by_id={},
+        tool_result_by_id={
+            str(idx): {"name": name, "isError": False}
+            for idx, name in enumerate(sorted(tool_names), start=1)
+        },
+        observed_tool_names=set(tool_names),
+        assistant_text_chunks=[assistant_text],
+        policy_denied_hits=[],
+    )
+    marker, _ = _evaluate_semantic_rules(prompt=prompt, evidence=evidence, language=None)
+    return marker == "__UNVERIFIED_FILE_OPERATION__"
+
+
+def _trace_event_payload(raw_event: dict[str, Any]) -> dict[str, Any]:
+    keep_keys = {
+        "type",
+        "subtype",
+        "name",
+        "id",
+        "toolUseId",
+        "sessionId",
+        "session_id",
+        "isError",
+        "content",
+        "message",
+    }
+    return {k: raw_event.get(k) for k in keep_keys if k in raw_event}
+
+
+def _write_policy_trace(
+    *,
+    session_id: str,
+    task_id: str | None,
+    prompt: str,
+    trace_events: list[dict[str, Any]],
+) -> None:
+    if not POLICY_TRACE_ENABLED:
+        return
+    try:
+        POLICY_TRACE_DIR.mkdir(parents=True, exist_ok=True)
+        file_name = f"{session_id}-{task_id or 'no-task'}.json"
+        payload = {
+            "sessionId": session_id,
+            "taskId": task_id,
+            "prompt": prompt,
+            "createdAt": datetime.now(timezone.utc).isoformat(),
+            "events": trace_events,
+        }
+        (POLICY_TRACE_DIR / file_name).write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except Exception:
+        logger.debug("failed to write policy trace", exc_info=True)
+
+
+def replay_trace_events(trace_payload: dict[str, Any]) -> list[dict[str, Any]]:
+    events = trace_payload.get("events")
+    if not isinstance(events, list):
+        return []
+    return [item for item in events if isinstance(item, dict)]
 
 
 def _get_workspace_instruction(work_dir: str, sandbox_enabled: bool) -> str:
@@ -1219,50 +1321,80 @@ async def run_agent(
             yield {"type": "done"}
             return
 
+        trace_events: list[dict[str, Any]] = []
         try:
             tool_names: dict[str, str] = {}
-            observed_tool_names: set[str] = set()
-            assistant_text_chunks: list[str] = []
+            evidence = ExecutionEvidence(
+                tool_use_by_id={},
+                tool_result_by_id={},
+                observed_tool_names=set(),
+                assistant_text_chunks=[],
+                policy_denied_hits=[],
+            )
             async for sdk_event in agent.query(enhanced_prompt):
                 if await _is_session_aborted(session):
+                    trace_events.append({"type": "error", "message": "Execution aborted"})
                     yield {"type": "error", "message": "Execution aborted"}
                     yield {"type": "done"}
                     return
                 mapped = await _map_sdk_event(sdk_event, tool_names)
                 for event in mapped:
                     if event.get("type") == "tool_use":
-                        observed_tool_names.add(str(event.get("name") or "").strip())
+                        tool_use_id = str(event.get("id") or "").strip()
+                        tool_name = str(event.get("name") or "").strip()
+                        if tool_use_id:
+                            evidence.tool_use_by_id[tool_use_id] = tool_name
+                        if tool_name:
+                            evidence.observed_tool_names.add(tool_name)
                         add_span_event(span, "tool.use", {"tool.name": str(event.get("name") or "unknown")})
                     if event.get("type") == "tool_result":
+                        tool_use_id = str(event.get("toolUseId") or "").strip()
+                        tool_name = str(event.get("name") or "").strip()
+                        if not tool_name and tool_use_id:
+                            tool_name = str(evidence.tool_use_by_id.get(tool_use_id) or "")
+                        result_payload = {
+                            "name": tool_name,
+                            "isError": bool(event.get("isError")),
+                            "output": str(event.get("output") or ""),
+                        }
+                        if tool_use_id:
+                            evidence.tool_result_by_id[tool_use_id] = result_payload
+                        if "__POLICY_DENIED__" in result_payload["output"]:
+                            evidence.policy_denied_hits.append(result_payload["output"])
                         add_span_event(
                             span,
                             "tool.result",
                             {
-                                "tool.name": str(event.get("name") or "unknown"),
+                                "tool.name": tool_name or "unknown",
                                 "tool.is_error": bool(event.get("isError")),
                             },
                         )
                     if event.get("type") == "text":
-                        assistant_text_chunks.append(str(event.get("content") or ""))
+                        evidence.assistant_text_chunks.append(str(event.get("content") or ""))
+                    trace_events.append(_trace_event_payload(event))
                     if event.get("type") == "result" and str(event.get("subtype") or "") == "success":
-                        combined_text = "".join(assistant_text_chunks)
-                        if _should_block_unverified_file_success(prompt, observed_tool_names, combined_text):
+                        marker, message = _evaluate_semantic_rules(
+                            prompt=prompt,
+                            evidence=evidence,
+                            language=language,
+                        )
+                        if marker:
                             add_span_event(
                                 span,
-                                "result.blocked_unverified_file_success",
+                                "result.blocked_semantic_rule",
                                 {
                                     "task.id": task_id or "",
-                                    "tools": ",".join(sorted(t for t in observed_tool_names if t)),
+                                    "tools": ",".join(sorted(t for t in evidence.observed_tool_names if t)),
+                                    "marker": marker,
                                 },
                             )
-                            lang = _resolve_language(language, prompt)
-                            message = (
-                                "未检测到真实的文件写入/验证工具调用，已阻止“已生成”结果。请重新执行任务。"
-                                if lang == "zh-CN"
-                                else "Blocked unverifiable file-success response because no file write/verify tool call was detected. Please run the task again."
-                            )
-                            yield {"type": "error", "message": "__UNVERIFIED_FILE_OPERATION__"}
-                            yield {"type": "text", "content": message}
+                            blocked_error = {"type": "error", "message": marker}
+                            trace_events.append(blocked_error)
+                            yield blocked_error
+                            if message:
+                                message_event = {"type": "text", "content": message}
+                                trace_events.append(message_event)
+                                yield message_event
                             yield {**event, "subtype": "error", "content": "error"}
                             continue
                     yield event
@@ -1277,6 +1409,12 @@ async def run_agent(
             yield {"type": "error", "message": _sanitize_error(str(exc), resolved_model_config)}
         finally:
             await agent.close()
+            _write_policy_trace(
+                session_id=session.id,
+                task_id=task_id,
+                prompt=prompt,
+                trace_events=trace_events,
+            )
 
         yield {"type": "done"}
 
@@ -1460,4 +1598,3 @@ async def runAgent(
         language=language,
     ):
         yield event
-

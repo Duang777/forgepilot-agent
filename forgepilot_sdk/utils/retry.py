@@ -98,7 +98,7 @@ def is_rate_limit_error(err: Any) -> bool:
 
 def format_api_error(err: Any) -> str:
     if is_auth_error(err):
-        return "Authentication failed. Check your CODEANY_API_KEY."
+        return "Authentication failed. Check your DUANGCODE_API_KEY."
     if is_rate_limit_error(err):
         return "Rate limit exceeded. Please retry after a short wait."
     if getattr(err, "status", None) == 529:
