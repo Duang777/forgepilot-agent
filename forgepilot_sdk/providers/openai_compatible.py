@@ -6,6 +6,7 @@ import logging
 import os
 import uuid
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -14,6 +15,11 @@ from forgepilot_sdk.types import ConversationMessage, ToolDefinition
 
 logger = logging.getLogger(__name__)
 _RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+
+
+def _looks_like_origin(base_url: str) -> bool:
+    parsed = urlparse(base_url)
+    return parsed.path.rstrip("/") == ""
 
 
 def _to_openai_tool(tool: ToolDefinition) -> dict[str, Any]:
@@ -400,9 +406,9 @@ class OpenAICompatibleProvider(LLMProvider):
     def _build_chat_completions_endpoint(self) -> str:
         if self._base_url.endswith("/chat/completions"):
             return self._base_url
-        if self._base_url.endswith(("/v1", "/v4")):
-            return f"{self._base_url}/chat/completions"
-        return f"{self._base_url}/v1/chat/completions"
+        if _looks_like_origin(self._base_url):
+            return f"{self._base_url}/v1/chat/completions"
+        return f"{self._base_url}/chat/completions"
 
     async def _create_message_streaming(
         self,

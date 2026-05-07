@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter
@@ -21,32 +23,102 @@ from forgepilot_api.services.provider_service import (
 router = APIRouter(prefix="/providers", tags=["providers"])
 
 API_TIMEOUT_MS = 60000
-DEFAULT_TEST_MODEL = "gpt-3.5-turbo"
 DETECT_TEST_MESSAGE = "OK"
+AuthType = str
 
 
-def _build_anthropic_api_url(base_url: str) -> str:
+@dataclass(frozen=True)
+class DetectProviderSpec:
+    endpoint_path: str
+    default_model: str
+    auth_type: AuthType
+    default_api_prefix: str = ""
+
+
+DETECT_PROVIDER_SPECS: dict[str, DetectProviderSpec] = {
+    "openai-completions": DetectProviderSpec(
+        endpoint_path="/chat/completions",
+        default_model="gpt-3.5-turbo",
+        auth_type="bearer",
+        default_api_prefix="/v1",
+    ),
+    "anthropic-messages": DetectProviderSpec(
+        endpoint_path="/messages",
+        default_model="claude-3-5-haiku-latest",
+        auth_type="anthropic-key",
+        default_api_prefix="/v1",
+    ),
+}
+
+
+def _looks_like_origin(base_url: str) -> bool:
+    parsed = urlparse(base_url)
+    return parsed.path.rstrip("/") == ""
+
+
+def _resolve_spec(spec_or_type: DetectProviderSpec | str) -> DetectProviderSpec:
+    if isinstance(spec_or_type, DetectProviderSpec):
+        return spec_or_type
+    return DETECT_PROVIDER_SPECS.get(str(spec_or_type), DETECT_PROVIDER_SPECS["openai-completions"])
+
+
+def _build_api_url(base_url: str, spec_or_type: DetectProviderSpec | str) -> str:
+    spec = _resolve_spec(spec_or_type)
     normalized = base_url.rstrip("/")
-    if "/messages" in normalized:
+
+    if normalized.endswith(spec.endpoint_path):
         return normalized
-    if normalized.endswith("/v1"):
-        return f"{normalized}/messages"
-    return f"{normalized}/v1/messages"
+
+    if spec.default_api_prefix and _looks_like_origin(normalized):
+        normalized = f"{normalized}{spec.default_api_prefix}"
+
+    return f"{normalized}{spec.endpoint_path}"
 
 
-def _build_openai_api_url(base_url: str) -> str:
-    normalized = base_url.rstrip("/")
-    if normalized.endswith("/chat/completions"):
-        return normalized
-    if normalized.endswith(("/v1", "/v4")):
-        return f"{normalized}/chat/completions"
-    return f"{normalized}/v1/chat/completions"
+def _build_headers(spec: DetectProviderSpec, api_key: str) -> dict[str, str]:
+    if spec.auth_type == "bearer":
+        return {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        }
+    return {
+        "Content-Type": "application/json",
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+    }
 
 
-def _build_api_url(base_url: str, api_type: str | None = None) -> str:
-    if api_type == "openai-completions":
-        return _build_openai_api_url(base_url)
-    return _build_anthropic_api_url(base_url)
+def _build_detect_payload(model: str) -> dict[str, Any]:
+    return {
+        "model": model,
+        "messages": [{"role": "user", "content": DETECT_TEST_MESSAGE}],
+        "max_tokens": 1,
+        "stream": False,
+    }
+
+
+def _extract_error_message(resp: httpx.Response) -> str:
+    try:
+        error_json = resp.json()
+    except Exception:
+        return f"HTTP {resp.status_code}"
+
+    if isinstance(error_json, dict):
+        error = error_json.get("error")
+        if isinstance(error, dict):
+            return str(error.get("message") or f"HTTP {resp.status_code}")
+        if isinstance(error, str):
+            return error
+        if error_json.get("message"):
+            return str(error_json["message"])
+    return f"HTTP {resp.status_code}"
+
+
+def _safe_response_body(resp: httpx.Response) -> Any:
+    try:
+        return resp.json()
+    except Exception:
+        return resp.text
 
 
 @router.get("/sandbox")
@@ -120,41 +192,41 @@ async def config() -> dict:
 async def detect(body: dict[str, Any]) -> dict:
     base_url = body.get("baseUrl")
     api_key = body.get("apiKey")
-    test_model = body.get("model") or DEFAULT_TEST_MODEL
     api_type = str(body.get("apiType") or "openai-completions")
+    spec = DETECT_PROVIDER_SPECS.get(api_type)
+    if spec is None:
+        return JSONResponse(
+            {"error": f"apiType must be one of: {', '.join(DETECT_PROVIDER_SPECS.keys())}"},
+            status_code=400,
+        )
     if not base_url or not api_key:
         return JSONResponse({"error": "baseUrl and apiKey are required"}, status_code=400)
 
-    api_url = _build_api_url(str(base_url), api_type)
+    test_model = str(body.get("model") or spec.default_model)
+    api_url = _build_api_url(str(base_url), spec)
     timeout_s = API_TIMEOUT_MS / 1000
-    payload = {
-        "model": test_model,
-        "messages": [{"role": "user", "content": DETECT_TEST_MESSAGE}],
-        "max_tokens": 1,
-        "stream": False,
-    }
+    payload = _build_detect_payload(test_model)
+    headers = _build_headers(spec, str(api_key))
 
     try:
         async with httpx.AsyncClient(timeout=timeout_s) as client:
-            resp = await client.post(
-                api_url,
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-                json=payload,
-            )
-            if resp.is_success:
-                return {
-                    "success": True,
-                    "message": "Connection successful! Configuration valid",
-                    "model": test_model,
-                    "response": resp.json(),
-                }
+            resp = await client.post(api_url, headers=headers, json=payload)
 
-        try:
-            error_json = resp.json()
-            error_text = error_json.get("error", {}).get("message") or f"HTTP {resp.status_code}"
-        except Exception:
-            error_text = f"HTTP {resp.status_code}"
-        return {"success": False, "error": error_text}
+        if resp.is_success:
+            return {
+                "success": True,
+                "message": "Connection successful! Configuration valid",
+                "apiType": api_type,
+                "model": test_model,
+                "url": api_url,
+                "response": _safe_response_body(resp),
+            }
+        return {
+            "success": False,
+            "apiType": api_type,
+            "url": api_url,
+            "error": _extract_error_message(resp),
+        }
     except (asyncio.TimeoutError, httpx.TimeoutException):
         return {"success": False, "error": "Connection timeout (60s)"}
     except Exception as exc:
