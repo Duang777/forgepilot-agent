@@ -56,7 +56,14 @@ def _looks_like_origin(base_url: str) -> bool:
     return parsed.path.rstrip("/") == ""
 
 
-def _build_api_url(base_url: str, spec: DetectProviderSpec) -> str:
+def _resolve_spec(spec_or_type: DetectProviderSpec | str) -> DetectProviderSpec:
+    if isinstance(spec_or_type, DetectProviderSpec):
+        return spec_or_type
+    return DETECT_PROVIDER_SPECS.get(str(spec_or_type), DETECT_PROVIDER_SPECS["openai-completions"])
+
+
+def _build_api_url(base_url: str, spec_or_type: DetectProviderSpec | str) -> str:
+    spec = _resolve_spec(spec_or_type)
     normalized = base_url.rstrip("/")
 
     if normalized.endswith(spec.endpoint_path):
